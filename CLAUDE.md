@@ -39,26 +39,44 @@
 
 ```
 BorderBreakシミュレーター/
-├── simulation.py        # メイン実装（全ロジック）
-├── conftest.py          # pytest パス設定
-├── CLAUDE.md            # このファイル
+├── simulation.py              # メイン実装（シミュレーターの全ロジック）
+├── catalog.py                 # パーツ・武器データの読込とインデックス化
+├── assemble.py                # 機体アセンブル計算の高レベル API
+├── bb_base_and_brand.py       # ベースパラメータ集計・セットボーナス計算
+├── bb_brbonus_calcparam_limit.py  # 強化チップ適用・calc params・パラメータ下限
+├── bb_calc_movement.py        # 重量ペナルティ・移動速度計算
+├── bb_weapon_calc.py          # 武器派生パラメータ計算（DPS・弾倉火力など）
+├── bb_full_calc.py            # constdata.js を使う統合エントリ（※要 constdata.js）
+├── conftest.py                # pytest パス設定
+├── CLAUDE.md                  # このファイル
+├── data/
+│   ├── weapons_all.json       # 全武器データ（武器種別ごとのネスト構造）
+│   ├── rank_param.json        # ランク→数値変換テーブル
+│   ├── sys_calc_constants.json  # 重量ペナルティ・速度下限などのシステム定数
+│   ├── bland_data.json        # ブランド（セットボーナス）定義
+│   └── parts_param_config.json  # パーツパラメータの上下限設定
 ├── tests/
 │   ├── __init__.py
-│   ├── test_core.py         # Core クラスのテスト（25件）
-│   ├── test_plant.py        # Plant クラスのテスト（42件）
-│   ├── test_agent.py        # Agent クラスのテスト（53件）
-│   ├── test_brain.py                      # Brain / GreedyBaseAttackBrain のテスト（28件）
-│   ├── test_plant_capture_brain.py        # PlantCaptureBrain のテスト（25件）
-│   ├── test_aggressive_combat_brain.py    # AggressiveCombatBrain のテスト（18件）
-│   ├── test_detection.py                  # 被索敵状態のテスト（20件）
-│   └── test_simulation.py                 # Simulation 戦闘ロジックのテスト（59件）
+│   ├── test_core.py                        # Core クラスのテスト（25件）
+│   ├── test_plant.py                       # Plant クラスのテスト（42件）
+│   ├── test_agent.py                       # Agent クラスのテスト（53件）
+│   ├── test_brain.py                       # Brain / GreedyBaseAttackBrain のテスト（28件）
+│   ├── test_plant_capture_brain.py         # PlantCaptureBrain のテスト（25件）
+│   ├── test_aggressive_combat_brain.py     # AggressiveCombatBrain のテスト（18件）
+│   ├── test_detection.py                   # 被索敵状態のテスト（20件）
+│   ├── test_simulation.py                  # Simulation 戦闘ロジックのテスト（59件）
+│   ├── test_weapon_calc.py                 # bb_weapon_calc のテスト（44件）
+│   ├── test_bb_base_and_brand.py           # bb_base_and_brand のテスト（41件）
+│   ├── test_bb_brbonus_calcparam_limit.py  # bb_brbonus_calcparam_limit のテスト（37件）
+│   ├── test_bb_calc_movement.py            # bb_calc_movement のテスト（16件）
+│   └── test_catalog.py                     # catalog のテスト（16件）
 └── logs/
     └── dev/             # 開発用 CSV ログ出力先
         ├── steps_YYYYMMDD_HHMMSS.csv
         └── events_YYYYMMDD_HHMMSS.csv
 ```
 
-**テスト合計: 270 件（全件グリーン）**
+**テスト合計: 444 件（全件グリーン）**
 
 ---
 
@@ -353,6 +371,8 @@ capture_gauge = clamp(capture_gauge + net, -10, +10)
 - [x] AggressiveCombatBrain による戦闘重視戦略（ATTACK / APPROACH / HUNT / PATROL 4状態）
 - [x] Role enum（ASSAULT / HEAVY_ASSAULT / SUPPORT / SNIPER）と Agent.role 属性（現フェーズは全員 ASSAULT）
 - [x] ユニットテスト 270 件（test_core / test_plant / test_agent / test_brain / test_plant_capture_brain / test_aggressive_combat_brain / test_detection / test_simulation）
+- [x] パーツ・武器データ管理モジュール群（catalog / assemble / bb_\* モジュール）の追加
+- [x] パーツ・武器計算モジュール群のユニットテスト 174 件（test_weapon_calc / test_bb_base_and_brand / test_bb_brbonus_calcparam_limit / test_bb_calc_movement / test_catalog）
 
 ## 未実装・次ステップ候補
 
@@ -385,6 +405,101 @@ python simulation.py
 ```bash
 python -m pytest tests/ -v
 ```
+
+---
+
+## パーツ・武器計算モジュール群の設計
+
+### モジュール依存関係
+
+```
+bb_calc_movement.py          (依存なし)
+bb_base_and_brand.py         → bb_calc_movement (_get_rank_closest を再利用)
+bb_brbonus_calcparam_limit.py  (依存なし)
+bb_weapon_calc.py              (依存なし)
+catalog.py                     (依存なし)
+assemble.py  → catalog / bb_base_and_brand / bb_brbonus_calcparam_limit / bb_weapon_calc
+bb_full_calc.py → bb_base_and_brand / bb_brbonus_calcparam_limit / bb_weapon_calc
+                  （※ constdata.js が必要。ファイルが存在しない場合は calc_full_assemble 呼び出し時にエラー）
+```
+
+### `catalog.py` — `Catalog` クラス
+
+`data/` ディレクトリ以下の JSON ファイルを読み込み、パーツ・武器・定数テーブルを提供する。
+
+| メソッド / プロパティ | 説明 |
+|---|---|
+| `list_parts(category)` | カテゴリ（head/body/arm/leg）のパーツ一覧 `[(key, name)]` |
+| `get_part(category, key)` | 指定パーツの dict を返す（なければ KeyError） |
+| `find_part_keys_by_name(category, name)` | 名前でパーツキーを検索 |
+| `list_weapon_datasets()` | 武器データセット名の一覧（ソート済み） |
+| `list_weapons(dataset)` | データセット内の武器一覧 `[(key, name)]` |
+| `get_weapon(dataset, key)` | 指定武器の dict を返す（なければ KeyError） |
+| `find_weapons_by_name(name)` | 名前で武器を検索、`[WeaponRef]` を返す |
+| `rank_param` | ランク→数値テーブル（`data/rank_param.json`） |
+| `sys_consts` | システム定数（`data/sys_calc_constants.json`） |
+| `bland` | ブランドセットボーナス定義（`data/bland_data.json`） |
+| `param_limits` | パラメータ下限設定（`data/parts_param_config.json`） |
+
+> `data/parts_normalized.json` は現時点では存在しないため、パーツ検索系は空を返す。
+
+### `bb_calc_movement.py` — 移動速度・重量ペナルティ
+
+| 関数 | 説明 |
+|---|---|
+| `get_rank_closest(const_data, param)` | 数値に最も近いランク文字列を返す |
+| `set_weight_penalty(...)` | 積載超過ペナルティを walk/dash に適用、MIN/MAX でクランプ、ランク再計算 |
+
+`SysConsts` dataclass: `WEIGHT_PENALTY`, `WALK_MIN`, `DASH_MIN`, `WALK_MIN_HOVER`, `WALK_MAX_HOVER`, `DASH_MIN_HOVER`
+
+### `bb_base_and_brand.py` — ベース集計・セットボーナス
+
+| 関数 | 説明 |
+|---|---|
+| `_strip_js_comments(code)` | JS ソースからコメントを除去 |
+| `_extract_brace_block(s, start_idx)` | `{...}` ブロックを抽出 |
+| `_parse_js_object_literal(block)` | JS オブジェクトリテラルを Python dict に変換 |
+| `load_const_parts(path)` | `constdata.js` からパーツ定義を読み込む |
+| `load_bland_data(path)` | `constdata.js` からブランド定義を読み込む |
+| `load_rank_param(path)` | `rank_param.json` を読み込む |
+| `rank_param_load_part(part, rank_param)` | `{"rank": "C+"}` → `{"rank": "C+", "param": 1.0}` に変換 |
+| `apply_set_bonus(draw, bland_data, bonus_rate_percent)` | 全4パーツが同一 `blandId` の場合にセットボーナスを適用 |
+| `calc_parts_base(draw, sysc, rank_param, ...)` | 装甲平均・総重量・walk/dash（ペナルティ適用済み）を集計 |
+| `build_draw_parts_from_const(...)` | `constdata.js` のパーツデータから draw 構造体を構築 |
+| `_get_rank_closest` | `bb_calc_movement.get_rank_closest` の再エクスポート |
+
+### `bb_brbonus_calcparam_limit.py` — 強化チップ・calc params
+
+| 関数群 | 説明 |
+|---|---|
+| `add_bonus_br_armor(draw, bonus)` 他 | 個別チップ効果を draw に適用（加算・減算） |
+| `apply_br_bonus_chips(draw, chip_reinforcement_br)` | チップ設定を一括適用（`CHIP_HANDLERS` テーブルで dispatch） |
+| `calc_param_ndef_charge(src)` | DEF 回復時間の計算（`ndefCharge * ndefChargeRate / 100`） |
+| `calc_param_step(src, step_boost_default)` | ブースター容量からステップ数を計算（切り上げ） |
+| `calc_param_velocity(src)` | 加速到達時間の計算（`velocity * velocityTimeRate / 100`） |
+| `calc_draw_param(src, parts_type, ...)` | head/body/leg に対応した calc_param を dispatch |
+| `apply_parts_param_limits(draw, param_limits)` | `areaTransport >= 2.0` などのパラメータ下限を適用 |
+
+### `bb_weapon_calc.py` — 武器派生パラメータ
+
+| 関数 | 説明 |
+|---|---|
+| `get_damage_num(damage_obj)` | damage フィールドを `list[int]` に正規化（scalar / list / maxDamage / chargeDamage / pellet モデル対応） |
+| `calc_magazine_damage(src)` | 弾倉火力 = damage × clip |
+| `calc_mag_total_damage(src)` | 総火力 = damage × clip × ammo（ammo=0 は 1 扱い） |
+| `calc_magazine_sec(src)` | 弾倉持続時間 = clip / rate × 60 |
+| `calc_damage_per_sec(src)` | 秒間火力 = damage × rate / 60 |
+| `apply_weapon_derived_params(dst)` | 上記4種を dst dict に追加（in-place）、同じ dict を返す |
+
+### `assemble.py` — 高レベル API
+
+| 関数 | 説明 |
+|---|---|
+| `calc_loadout(catalog, keys, ...)` | パーツキーを受け取り、セットボーナス・チップ・基本パラメータを一括計算 |
+| `calc_weapon(catalog, ref)` | 武器の派生パラメータを計算した dict を返す |
+| `calc_full(catalog, keys, weapons, ...)` | `calc_loadout` + 武器計算をまとめた統合エントリ |
+
+---
 
 ## 依存ライブラリ
 

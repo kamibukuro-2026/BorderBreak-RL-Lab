@@ -1,0 +1,871 @@
+{
+  "meta": {
+    "source_file": "constdata_sys.js",
+    "object": "DRAWDATA (UI/config) candidate"
+  },
+  "param_limits": {
+    "areaTransport": 2.0
+  },
+  "parts_param": {
+    "sortIndex": {
+      "name": "初期並び順",
+      "parts": false,
+      "list": true
+    },
+    "id": {
+      "name": "ID",
+      "parts": false,
+      "list": false
+    },
+    "name": {
+      "name": "名称",
+      "parts": true,
+      "list": true
+    },
+    "chipCapacity": {
+      "name": "チップ",
+      "floatFix": 1,
+      "parts": true,
+      "list": true
+    },
+    "weaponType": {
+      "name": "武器種別",
+      "parts": false,
+      "list": false
+    },
+    "weight": {
+      "name": "重量",
+      "parts": true,
+      "list": true
+    },
+    "loadCapacityLeftover": {
+      "name": "積載猶予",
+      "parts": true,
+      "list": true
+    },
+    "damageType": {
+      "name": "属性",
+      "after": "%",
+      "parts": true,
+      "list": true
+    },
+    "damageTypeExt": {
+      "name": "属性補足",
+      "parts": true,
+      "list": false
+    },
+    "fireMode": {
+      "name": "射撃方式",
+      "parts": true,
+      "list": true
+    },
+    "damage": {
+      "name": "威力",
+      "parts": true,
+      "list": true
+    },
+    "damageNormal": {
+      "name": "通常攻撃威力",
+      "parts": true,
+      "list": true
+    },
+    "damageSpecial": {
+      "name": "特殊攻撃威力",
+      "parts": true,
+      "list": true
+    },
+    "damageNormalShockWave": {
+      "name": "通常攻撃投射",
+      "parts": true,
+      "list": true
+    },
+    "damageSpecialShockWave": {
+      "name": "特殊攻撃投射",
+      "parts": true,
+      "list": true
+    },
+    "downDamageScale": {
+      "name": "ダウン値係数",
+      "parts": false,
+      "list": false
+    },
+    "spread": {
+      "name": "拡散率",
+      "parts": true,
+      "list": true
+    },
+    "radius": {
+      "name": "効果半径",
+      "floatFix": 1,
+      "after": "m",
+      "parts": true,
+      "list": true
+    },
+    "timeFuse": {
+      "name": "起爆時間",
+      "after": "sec",
+      "floatFix": 1,
+      "parts": true,
+      "list": true
+    },
+    "explosionNum": {
+      "name": "爆発回数",
+      "parts": true,
+      "list": true
+    },
+    "duration": {
+      "name": "効果時間",
+      "floatFix": 1,
+      "after": "sec",
+      "parts": true,
+      "list": true
+    },
+    "stayTime": {
+      "name": "停滞時間",
+      "after": "sec",
+      "floatFix": 2,
+      "parts": true,
+      "list": true
+    },
+    "ammoTotal": {
+      "name": "総弾数",
+      "parts": true,
+      "list": true
+    },
+    "clip": {
+      "name": "装弾数",
+      "parts": false,
+      "list": false
+    },
+    "ammo": {
+      "name": "マガジン数",
+      "parts": false,
+      "list": false
+    },
+    "subMagAmmo": {
+      "name": "追加予備弾",
+      "before": "+",
+      "parts": true,
+      "list": false
+    },
+    "range": {
+      "name": "射程距離",
+      "after": "m",
+      "parts": true,
+      "list": true
+    },
+    "cep": {
+      "name": "着弾誤差半径",
+      "after": "m",
+      "parts": true,
+      "list": true
+    },
+    "flyingDistance": {
+      "name": "飛距離",
+      "after": "m",
+      "parts": true,
+      "list": true
+    },
+    "sensorRadius": {
+      "name": "感知半径",
+      "after": "m",
+      "parts": true,
+      "list": true
+    },
+    "sensorAngle": {
+      "name": "感知角度",
+      "after": "度",
+      "parts": true,
+      "list": true
+    },
+    "expandSpeed": {
+      "name": "拡大速度",
+      "parts": true,
+      "list": true
+    },
+    "flightDuration": {
+      "name": "滞空時間",
+      "after": "sec",
+      "parts": true,
+      "list": true
+    },
+    "scope": {
+      "name": "スコープ倍率",
+      "floatFix": 1,
+      "parts": true,
+      "list": true
+    },
+    "rate": {
+      "name": "射撃速度",
+      "after": "/min",
+      "parts": true,
+      "list": true
+    },
+    "precision": {
+      "name": "精度",
+      "parts": true,
+      "list": true
+    },
+    "homing": {
+      "name": "誘導",
+      "parts": true,
+      "list": true
+    },
+    "chargeTime": {
+      "name": "充填時間",
+      "after": "sec",
+      "floatFix": 2,
+      "parts": true,
+      "list": true
+    },
+    "magazineDamage": {
+      "name": "弾倉火力",
+      "parts": true,
+      "list": true
+    },
+    "magTotalDamage": {
+      "name": "総火力",
+      "parts": true,
+      "list": true
+    },
+    "magazineSec": {
+      "name": "弾倉持続",
+      "after": "sec",
+      "floatFix": 2,
+      "parts": true,
+      "list": true
+    },
+    "damagePerSec": {
+      "name": "秒間火力",
+      "parts": true,
+      "list": true
+    },
+    "reload": {
+      "name": "リロード",
+      "after": "sec",
+      "floatFix": 2,
+      "parts": true,
+      "list": true
+    },
+    "unitNum": {
+      "name": "所持数",
+      "parts": true,
+      "list": true
+    },
+    "repairSpeed": {
+      "name": "修理速度",
+      "after": "/sec",
+      "parts": true,
+      "list": true
+    },
+    "detectRange": {
+      "name": "感知距離",
+      "parts": true,
+      "list": true
+    },
+    "sakutekiDuration": {
+      "name": "索敵継続",
+      "after": "sec",
+      "floatFix": 2,
+      "parts": true,
+      "list": true
+    },
+    "maxDuration": {
+      "name": "最大持続時間",
+      "after": "sec",
+      "floatFix": 1,
+      "parts": true,
+      "list": true
+    },
+    "fireSensorAngle": {
+      "name": "射角",
+      "after": "度",
+      "parts": true,
+      "list": true
+    },
+    "outputPower": {
+      "name": "出力",
+      "before": "x",
+      "floatFix": 2,
+      "parts": true,
+      "list": true
+    },
+    "acSpeed": {
+      "name": "AC速度",
+      "after": "m/s",
+      "floatFix": 2,
+      "parts": true,
+      "list": false
+    },
+    "acMigration": {
+      "name": "到達距離",
+      "after": "m",
+      "floatFix": 1,
+      "parts": true,
+      "list": false
+    },
+    "spCharge": {
+      "name": "SP回復",
+      "after": "sec",
+      "floatFix": 1,
+      "parts": true,
+      "list": true
+    },
+    "spReboot": {
+      "name": "SP再起動",
+      "after": "sec",
+      "floatFix": 1,
+      "parts": true,
+      "list": true
+    },
+    "blandId": {
+      "name": "ブランド",
+      "parts": true,
+      "list": false
+    },
+    "armor": {
+      "name": "ダメージ係数",
+      "before": "x",
+      "floatFix": 2,
+      "parts": true,
+      "list": true
+    },
+    "aim": {
+      "name": "射撃補正",
+      "floatFix": 2,
+      "parts": true,
+      "list": true
+    },
+    "sakuteki": {
+      "name": "索敵",
+      "after": "m",
+      "parts": true,
+      "list": true
+    },
+    "lockOn": {
+      "name": "ロックオン",
+      "after": "m",
+      "parts": true,
+      "list": true
+    },
+    "ndefCharge": {
+      "name": "DEF回復",
+      "after": "sec",
+      "floatFix": 1,
+      "parts": true,
+      "list": true
+    },
+    "ndefChargeRate": {
+      "name": "DEF回復時間係数",
+      "after": "%",
+      "parts": false,
+      "list": false
+    },
+    "booster": {
+      "name": "ブースター",
+      "parts": true,
+      "list": true
+    },
+    "step": {
+      "name": "ステップ",
+      "after": "",
+      "parts": true,
+      "list": true
+    },
+    "ndefCapacity": {
+      "name": "DEF耐久",
+      "parts": true,
+      "list": true
+    },
+    "spSupply": {
+      "name": "SP補充時間",
+      "before": "x",
+      "floatFix": 2,
+      "parts": true,
+      "list": true
+    },
+    "areaTransport": {
+      "name": "エリア移動",
+      "after": "sec",
+      "floatFix": 2,
+      "paramMin": 2.0,
+      "parts": true,
+      "list": true
+    },
+    "recoilCtrl": {
+      "name": "反動吸収",
+      "floatFix": 2,
+      "parts": true,
+      "list": true
+    },
+    "reloadRate": {
+      "name": "リロード",
+      "floatFix": 2,
+      "before": "x",
+      "parts": true,
+      "list": true
+    },
+    "weaponChange": {
+      "name": "武器変更",
+      "floatFix": 2,
+      "after": "sec",
+      "parts": true,
+      "list": true
+    },
+    "subMagRate": {
+      "name": "予備弾数",
+      "floatFix": 2,
+      "before": "x",
+      "percent": true,
+      "parts": true,
+      "list": true
+    },
+    "chipSubMagRate": {
+      "name": "予備弾数",
+      "after": "%",
+      "parts": false,
+      "list": false
+    },
+    "walk": {
+      "name": "歩行",
+      "after": "m/s",
+      "floatFix": 2,
+      "parts": true,
+      "list": true
+    },
+    "dash": {
+      "name": "ダッシュ",
+      "after": "m/s",
+      "floatFix": 2,
+      "parts": true,
+      "list": true
+    },
+    "velocity": {
+      "name": "加速",
+      "after": "sec",
+      "floatFix": 2,
+      "parts": true,
+      "list": true
+    },
+    "velocityTimeRate": {
+      "name": "加速到達時間係数",
+      "after": "%",
+      "parts": false,
+      "list": false
+    },
+    "velocityTimeSec": {
+      "name": "加速到達秒数",
+      "after": "sec",
+      "parts": false,
+      "list": false
+    },
+    "loadCapacity": {
+      "name": "重量耐性",
+      "parts": true,
+      "list": true
+    },
+    "chipCost": {
+      "name": "チップ容量",
+      "floatFix": 1,
+      "parts": true,
+      "list": true
+    },
+    "chipType": {
+      "name": "チップ種別",
+      "parts": true,
+      "list": false
+    },
+    "chipInfo": {
+      "name": "説明",
+      "parts": true,
+      "list": true
+    },
+    "chipTargetBlanch": {
+      "name": "対象兵装",
+      "parts": false,
+      "list": false
+    },
+    "chipBonusValue": {
+      "name": "チップボーナス値",
+      "parts": false,
+      "list": false
+    },
+    "chipExclusive": {
+      "name": "チップ排他",
+      "parts": false,
+      "list": false
+    },
+    "chipLeveling": {
+      "name": "複数Lvあり時のグループ",
+      "parts": false,
+      "list": false
+    },
+    "extendParamInfo": {
+      "name": "説明",
+      "parts": false,
+      "list": false
+    },
+    "keepLockonOBST": {
+      "name": "透過ロックオン維持",
+      "after": "sec",
+      "parts": false,
+      "list": false
+    },
+    "antiBreak": {
+      "name": "アンチブレイク",
+      "after": "%",
+      "parts": false,
+      "list": false
+    },
+    "energyBarrier": {
+      "name": "エナジーバリア",
+      "before": "-",
+      "after": "%",
+      "parts": false,
+      "list": false
+    },
+    "ndefChargeRange": {
+      "name": "DEF回復範囲拡大",
+      "parts": false,
+      "list": false
+    },
+    "ndefChargeLinear": {
+      "name": "リニアDEF回復",
+      "parts": false,
+      "list": false
+    },
+    "ndefAttack": {
+      "name": "対DEF破壊適正",
+      "parts": false,
+      "list": false
+    },
+    "objectSearch": {
+      "name": "設置武器探知",
+      "after": "m",
+      "parts": false,
+      "list": false
+    },
+    "sakutekiAim": {
+      "name": "高感度索敵",
+      "after": "dot",
+      "parts": false,
+      "list": false
+    },
+    "chargeSpeed": {
+      "name": "高速充填",
+      "before": "x",
+      "floatFix": 2,
+      "parts": false,
+      "list": false,
+      "percent": true,
+      "inverse": true
+    },
+    "repairPod": {
+      "name": "リペアポッド適性",
+      "before": "x",
+      "floatFix": 2,
+      "parts": false,
+      "list": false,
+      "percent": true,
+      "inverse": true
+    },
+    "throwMotion": {
+      "name": "投てき適性",
+      "before": "x",
+      "floatFix": 2,
+      "parts": false,
+      "list": false,
+      "percent": true,
+      "inverse": true
+    },
+    "ctrlDashAim": {
+      "name": "移動中射撃補正",
+      "after": "%",
+      "parts": false,
+      "list": false
+    },
+    "antiVehicle": {
+      "name": "対物破壊適性",
+      "after": "%",
+      "parts": false,
+      "list": false
+    },
+    "requestWeaponGage": {
+      "name": "要請兵器ゲージ促進",
+      "after": "%",
+      "parts": false,
+      "list": false
+    },
+    "viechleAbility": {
+      "name": "搭乗兵器適正",
+      "before": "x",
+      "floatFix": 2,
+      "parts": false,
+      "list": false,
+      "percent": true,
+      "inverse": true
+    },
+    "chipArmor": {
+      "name": "装甲",
+      "after": "%",
+      "parts": false,
+      "list": false
+    },
+    "chipArmorBullet": {
+      "name": "対実弾防御",
+      "after": "%",
+      "parts": false,
+      "list": false
+    },
+    "chipArmorExplosion": {
+      "name": "対爆発防御",
+      "after": "%",
+      "parts": false,
+      "list": false
+    },
+    "chipArmorNewd": {
+      "name": "対ニュード防御",
+      "after": "%",
+      "parts": false,
+      "list": false
+    },
+    "chipArmorInfight": {
+      "name": "対近接防御",
+      "after": "%",
+      "parts": false,
+      "list": false
+    },
+    "chipAim": {
+      "name": "射撃補正",
+      "after": "%",
+      "parts": false,
+      "list": false
+    },
+    "chipSakuteki": {
+      "name": "索敵",
+      "after": "m",
+      "parts": false,
+      "list": false
+    },
+    "chipLockOn": {
+      "name": "ロックオン",
+      "after": "m",
+      "parts": false,
+      "list": false
+    },
+    "chipBoosterCapa": {
+      "name": "ブースター",
+      "parts": false,
+      "list": false
+    },
+    "chipBoosterCharge": {
+      "name": "ブースター回復",
+      "before": "x",
+      "parts": false,
+      "list": false
+    },
+    "chipSpSupply": {
+      "name": "SP供給率",
+      "after": "%",
+      "parts": false,
+      "list": false
+    },
+    "carrierBonus": {
+      "name": "運搬適性",
+      "before": "-",
+      "after": "%",
+      "parts": false,
+      "list": false
+    },
+    "chipAreaTransport": {
+      "name": "エリア移動所要時間短縮",
+      "floatFix": 2,
+      "before": "-",
+      "after": "sec",
+      "parts": false,
+      "list": false
+    },
+    "chipRecoilCtrl": {
+      "name": "反動吸収",
+      "after": "%",
+      "parts": false,
+      "list": false
+    },
+    "chipReloadRate": {
+      "name": "リロード",
+      "after": "%",
+      "parts": false,
+      "list": false
+    },
+    "chipWeaponChange": {
+      "name": "武器変更",
+      "after": "%",
+      "parts": false,
+      "list": false
+    },
+    "chipWalk": {
+      "name": "歩行/通常移動",
+      "floatFix": 2,
+      "after": "m/s",
+      "parts": false,
+      "list": false
+    },
+    "chipDash": {
+      "name": "ダッシュ/高速移動",
+      "floatFix": 2,
+      "after": "m/s",
+      "parts": false,
+      "list": false
+    },
+    "chipLoadCapacity": {
+      "name": "重量耐性",
+      "before": "+",
+      "parts": false,
+      "list": false
+    },
+    "chipWeightPenaltyRegist": {
+      "name": "重量超過耐性",
+      "before": "-",
+      "after": "%",
+      "parts": false,
+      "list": false,
+      "percent": true
+    },
+    "chipPartsReinforcementHead": {
+      "name": "頭部パーツ強化",
+      "parts": false,
+      "list": false
+    },
+    "chipSetBonusRate": {
+      "name": "セットボーナス強化",
+      "after": "%",
+      "parts": false,
+      "list": false
+    },
+    "chipArmorAreaEffect": {
+      "name": "地形ダメージ軽減",
+      "after": "%",
+      "parts": false,
+      "list": false
+    },
+    "chipShortRangeZoom": {
+      "name": "近距離ロックズーム",
+      "before": "+",
+      "after": "倍",
+      "floatFix": 1,
+      "parts": false,
+      "list": false
+    },
+    "chipSnipeZoom": {
+      "name": "精密照準ズーム",
+      "before": "+",
+      "after": "倍",
+      "floatFix": 1,
+      "parts": false,
+      "list": false
+    },
+    "reinWpnExplosion": {
+      "name": "爆発範囲拡大",
+      "after": "m",
+      "parts": false,
+      "list": false
+    },
+    "reinWpnBulletRate": {
+      "name": "実弾速射",
+      "after": "%",
+      "parts": false,
+      "list": false
+    },
+    "reinWpnNewdDamage": {
+      "name": "ニュード威力上昇",
+      "after": "%",
+      "parts": false,
+      "list": false
+    },
+    "reinWpnInfightDamage": {
+      "name": "近接攻撃強化",
+      "after": "%",
+      "parts": false,
+      "list": false,
+      "percent": true
+    },
+    "reticleSpeed": {
+      "name": "高速精密射撃",
+      "before": "x",
+      "parts": false,
+      "list": false,
+      "percent": false,
+      "inverse": true,
+      "floatFix": 2
+    },
+    "fatalKo": {
+      "name": "大破必要値緩和",
+      "before": "-",
+      "parts": false,
+      "list": false,
+      "percent": false
+    },
+    "precise": {
+      "name": "CS倍率上昇",
+      "before": "+",
+      "after": "倍",
+      "floatFix": 1,
+      "parts": false,
+      "list": false,
+      "percent": false
+    },
+    "extraWeaponSupply": {
+      "name": "補助装備補給",
+      "before": "",
+      "after": "sec",
+      "parts": false,
+      "list": false,
+      "percent": false
+    },
+    "cooldownSpeed": {
+      "name": "高速冷却",
+      "before": "x",
+      "floatFix": 1,
+      "parts": false,
+      "list": false,
+      "percent": false
+    },
+    "ammoRipper": {
+      "name": "弾薬奪取",
+      "after": "%",
+      "parts": false,
+      "list": false
+    },
+    "blastRipper": {
+      "name": "補修部材奪取",
+      "after": "%",
+      "parts": false,
+      "list": false
+    },
+    "quickReload": {
+      "name": "クイックリロード",
+      "before": "x",
+      "floatFix": 1,
+      "parts": false,
+      "list": false
+    },
+    "actGuard": {
+      "name": "ガード",
+      "before": "-",
+      "after": "%",
+      "parts": false,
+      "list": false,
+      "percent": false
+    },
+    "wpRequestEffect": {
+      "name": "効果",
+      "parts": false,
+      "list": true
+    },
+    "reCharge": {
+      "name": "リチャージ",
+      "parts": false,
+      "list": true
+    }
+  }
+}

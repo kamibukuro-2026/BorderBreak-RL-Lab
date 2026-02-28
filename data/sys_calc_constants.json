@@ -1,0 +1,83 @@
+{
+  "meta": {
+    "source_file": "constdata_sys.js",
+    "object": "jp.libris.biscota.SYSDATA (self = {...})",
+    "note": "Extracted system constants used for calculation (e.g., weight penalty, movement minimums, rounding)."
+  },
+  "constants": {
+    "WEIGHT_PENALTY": 10,
+    "WEIGHT_PENALTY_PER": 25,
+    "WALK_MIN": 3.15,
+    "DASH_MIN": 10.5,
+    "WALK_MAX_HOVER": 14.7,
+    "WALK_MIN_HOVER": 4.2,
+    "DASH_MIN_HOVER": 8.4,
+    "CRUISE_HOVER": 0.875,
+    "CRUISE_FRONT": 0.6,
+    "CRUISE_SIDE": 0.54,
+    "CRUISE_REAR": 0.42,
+    "AC_FIXED_BONUS": 16.2,
+    "STEP_BOOST": 12,
+    "KB_NORMAL": 3300,
+    "KB_HOVER": 2750,
+    "DOWN_NORMAL": 6600,
+    "DOWN_HOVER": 5500,
+    "FATAL_NORMAL": 10000,
+    "CS_DAMAGE_SCALE": 2.5,
+    "PERPARAM_BASE_COMMON": 100,
+    "SELECT_CHIP_MAX": 25,
+    "FLOAT_FIX_CHIP": 1,
+    "FLOAT_FIX_BASIC": 2,
+    "FLOAT_FIX_AREATRANSPORT": 1,
+    "FLOAT_FIX_MOVE": 2,
+    "FLOAT_FIX_RELOAD": 2,
+    "MATERIAL_REST_MIN": 0,
+    "MATERIAL_REST_MAX": 9999,
+    "MEDAL_REST_MIN": 0,
+    "MEDAL_REST_MAX": 9999,
+    "BASE_URL": "http://bb.libris.jp/index.html",
+    "NEWEST_URL": "http://bb.libris.jp/index.html",
+    "TEST30_URL": "http://bb.libris.jp/idx_t30.html",
+    "TEST40_URL": "http://bb.libris.jp/idx_t40.html",
+    "TEST45_URL": "http://bb.libris.jp/idx_t45.html",
+    "TEST45BU_URL": "http://bb.libris.jp/idx_t45b.html",
+    "TESTX_URL": "http://bb.libris.jp/idx_x.html",
+    "NONUSER_INFO_URL": "現在、ユーザ個別ページではありません。",
+    "GETPARAM_DATAID": "id",
+    "GETPARAM_SAVEDATA": "sd",
+    "GETPARAM_ASM_STOCK_SELECT": "asl",
+    "GETPARAM_ASM_STOCK": "as",
+    "GETPARAM_MATERIAL": "mt",
+    "GETPARAM_MEDAL": "md",
+    "GETPARAM_PARTS": "pt",
+    "SAVEXML_RESULT": "result",
+    "COOKIE_PASSWORD": "password",
+    "COOKIE_CONFIG": {
+      "expires": 30
+    },
+    "DEFAULT_PARTSID": "a",
+    "DEFAULT_SAVEDATA": "baaaaaaaaaaaaaaaaaaaaaaaP",
+    "SORT_ASK": "sortAsk",
+    "SORT_DESK": "sortDesk",
+    "BR_HP": 10000,
+    "TAB_INDEX_PARTS_SHOP": 1000,
+    "ASSEMBLE_QUICKSET": [
+      [
+        "",
+        ""
+      ],
+      [
+        "初期装備に戻す",
+        "baaaaaaaaaaaaaaaaaaaaaaaP"
+      ],
+      [
+        "イベント：2013/03/25",
+        "aa----G---G---M---G---"
+      ],
+      [
+        "イベント：2016/03/14",
+        "aa2g2g2g2g----------------av1eP"
+      ]
+    ]
+  }
+}

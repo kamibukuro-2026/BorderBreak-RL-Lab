@@ -30,7 +30,8 @@ BASE B（チームB）
 - **プラグイン可能な Brain** — `Brain.decide()` を実装するだけで新しい戦略を追加可能
 - **同時解決戦闘** — 全エージェントの射撃を一括計算してから適用（相打ちあり）
 - **CSV ログ出力** — ステップ・イベントの2種類のログを自動保存、分析に利用可能
-- **227 件のユニットテスト** — TDD で開発、全件グリーン
+- **パーツ・武器データ管理** — 実際のゲームデータを基にした機体パラメータ計算（セットボーナス・強化チップ・重量ペナルティ・武器派生パラメータ）
+- **444 件のユニットテスト** — TDD で開発、全件グリーン
 
 ---
 
@@ -108,18 +109,38 @@ python -m pytest tests/ -v
 
 ```
 BorderBreakシミュレーター/
-├── simulation.py                     # メイン実装（全ロジック）
+├── simulation.py                     # メイン実装（シミュレーターの全ロジック）
+├── catalog.py                        # パーツ・武器データの読込とインデックス化
+├── assemble.py                       # 機体アセンブル計算の高レベル API
+├── bb_base_and_brand.py              # ベースパラメータ集計・セットボーナス計算
+├── bb_brbonus_calcparam_limit.py     # 強化チップ適用・calc params・パラメータ下限
+├── bb_calc_movement.py               # 重量ペナルティ・移動速度計算
+├── bb_weapon_calc.py                 # 武器派生パラメータ計算（DPS・弾倉火力など）
+├── bb_full_calc.py                   # constdata.js を使う統合エントリ
 ├── conftest.py                       # pytest パス設定
 ├── README.md                         # このファイル
 ├── CLAUDE.md                         # 設計仕様書（Claude Code 用）
 ├── .gitignore
+├── data/
+│   ├── weapons_all.json              # 全武器データ
+│   ├── rank_param.json               # ランク→数値変換テーブル
+│   ├── sys_calc_constants.json       # システム定数
+│   ├── bland_data.json               # ブランドセットボーナス定義
+│   └── parts_param_config.json       # パーツパラメータの上下限設定
 ├── tests/
 │   ├── test_core.py                  # Core クラスのテスト（25件）
 │   ├── test_plant.py                 # Plant クラスのテスト（42件）
-│   ├── test_agent.py                 # Agent クラスのテスト（48件）
+│   ├── test_agent.py                 # Agent クラスのテスト（53件）
 │   ├── test_brain.py                 # GreedyBaseAttackBrain のテスト（28件）
 │   ├── test_plant_capture_brain.py   # PlantCaptureBrain のテスト（25件）
-│   └── test_simulation.py            # Simulation 戦闘ロジックのテスト（59件）
+│   ├── test_aggressive_combat_brain.py  # AggressiveCombatBrain のテスト（18件）
+│   ├── test_detection.py             # 被索敵状態のテスト（20件）
+│   ├── test_simulation.py            # Simulation 戦闘ロジックのテスト（59件）
+│   ├── test_weapon_calc.py           # bb_weapon_calc のテスト（44件）
+│   ├── test_bb_base_and_brand.py     # bb_base_and_brand のテスト（41件）
+│   ├── test_bb_brbonus_calcparam_limit.py  # bb_brbonus_calcparam_limit のテスト（37件）
+│   ├── test_bb_calc_movement.py      # bb_calc_movement のテスト（16件）
+│   └── test_catalog.py               # catalog のテスト（16件）
 └── logs/
     └── dev/                          # 開発用 CSV ログ出力先
         ├── steps_YYYYMMDD_HHMMSS.csv
@@ -191,8 +212,30 @@ class Brain:
 
 ---
 
+## パーツ・武器計算 API
+
+実際のゲームデータを用いた機体パラメータ計算ができます。
+
+```python
+from catalog import Catalog, LoadoutKeys, WeaponRef
+from assemble import calc_full
+
+catalog = Catalog()  # data/ ディレクトリから自動読み込み
+
+# 武器の派生パラメータを計算
+ref = WeaponRef(dataset="WEAPON_AS_MAIN", key="a")
+weapon = calc_full(catalog, LoadoutKeys("a","a","a","a"), weapons={"main": ref})
+# weapon["weapons"]["main"]["magazineDamage"]  → 弾倉火力
+# weapon["weapons"]["main"]["damagePerSec"]    → 秒間火力
+```
+
+---
+
 ## 今後の予定
 
+- [ ] `parts_normalized.json` の追加（パーツ一覧・ルックアップ機能の完全化）
+- [ ] ロールごとの固有パラメータ実装（HP・移動速度・射程・DPS など）
+- [ ] ロール専用 Brain の実装（Support による回復、Sniper による遠距離攻撃など）
 - [ ] 行動戦略の追加（役割分担・陣形など）
 - [ ] スコア計算（占拠・撃破・回復ポイント）
 - [ ] スコアパラメータを変えた複数回シミュレーションの比較・分析

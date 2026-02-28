@@ -1,0 +1,455 @@
+{
+  "meta": {
+    "source_file": "constdata.js",
+    "key": "GAMEDATA.BLAND"
+  },
+  "bland": {
+    "cougar": {
+      "name": "クーガー",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "aim",
+          "setBonusValue": 2
+        },
+        {
+          "setBonusParamName": "loadCapacity",
+          "setBonusValue": 150
+        }
+      ],
+      "setBonusInfo": "射撃補正UP（+2%）、重量耐性UP（+150）",
+      "partsBgImage": "url(\"./image/bland_cougar.png\")"
+    },
+    "heavyGuard": {
+      "name": "ヘヴィーガード",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "armor",
+          "setBonusValue": 3
+        },
+        {
+          "setBonusParamName": "ndefCapacity",
+          "setBonusValue": 250
+        }
+      ],
+      "setBonusInfo": "装甲UP（+3%）、DEF耐久UP（+250）",
+      "partsBgImage": "url(\"./image/bland_heavyguard.png\")"
+    },
+    "shrike": {
+      "name": "シュライク",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "booster",
+          "setBonusValue": 3
+        },
+        {
+          "setBonusParamName": "walk",
+          "setBonusValue": 0.45
+        }
+      ],
+      "setBonusInfo": "ブースターUP（+3）、歩行速度UP（+0.45m/s）",
+      "partsBgImage": "url(\"./image/bland_shrike.png\")"
+    },
+    "zebra": {
+      "name": "ツェーブラ",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "sakuteki",
+          "setBonusValue": 15
+        },
+        {
+          "setBonusParamName": "reloadRate",
+          "setBonusValue": 3
+        }
+      ],
+      "setBonusInfo": "索敵UP（+15m）、リロード速度UP（+3%）",
+      "partsBgImage": "url(\"./image/bland_zebra.png\")"
+    },
+    "enforcer": {
+      "name": "エンフォーサー",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "booster",
+          "setBonusValue": 7
+        }
+      ],
+      "setBonusInfo": "ブースターUP（+7）",
+      "partsBgImage": "url(\"./image/bland_enforcer.png\")"
+    },
+    "kafer": {
+      "name": "ケーファー",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "recoilCtrl",
+          "setBonusValue": 5
+        },
+        {
+          "setBonusParamName": "walk",
+          "setBonusValue": 0.45
+        }
+      ],
+      "setBonusInfo": "反動吸収UP（+5%）、歩行速度UP（+0.45m/s）",
+      "partsBgImage": "url(\"./image/bland_kafer.png\")"
+    },
+    "edg": {
+      "name": "E.D.G.",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "reloadRate",
+          "setBonusValue": 5
+        }
+      ],
+      "setBonusInfo": "リロード速度UP（+5%）",
+      "partsBgImage": "url(\"./image/bland_edg.png\")"
+    },
+    "yaksha": {
+      "name": "ヤクシャ",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "lockOn",
+          "setBonusValue": 5
+        },
+        {
+          "setBonusParamName": "dash",
+          "setBonusValue": 0.6
+        }
+      ],
+      "setBonusInfo": "ロックオン距離UP（+5m）、ダッシュ速度UP（+0.60m/s）",
+      "partsBgImage": "url(\"./image/bland_yaksha.png\")"
+    },
+    "saber": {
+      "name": "セイバー",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "spSupply",
+          "setBonusValue": 5
+        },
+        {
+          "setBonusParamName": "areaTransport",
+          "setBonusValue": 0.5
+        }
+      ],
+      "setBonusInfo": "SP供給率UP（+5%）、エリア移動速度UP（-0.5sec）",
+      "partsBgImage": "url(\"./image/bland_saber.png\")"
+    },
+    "discas": {
+      "name": "ディスカス",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "spSupply",
+          "setBonusValue": 10
+        }
+      ],
+      "setBonusInfo": "SP供給率UP（+10%）",
+      "partsBgImage": "url(\"./image/bland_discas.png\")"
+    },
+    "nereid": {
+      "name": "ネレイド",
+      "setBonusInfo": "射撃補正UP（+2%）、加速UP（-0.54sec）",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "aim",
+          "setBonusValue": 2
+        },
+        {
+          "setBonusParamName": "velocityTimeSec",
+          "setBonusValue": -0.54
+        }
+      ],
+      "partsBgImage": "url(\"./image/bland_nereid.png\")"
+    },
+    "jinga": {
+      "name": "迅牙",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "lockOn",
+          "setBonusValue": 5
+        },
+        {
+          "setBonusParamName": "spSupply",
+          "setBonusValue": 5
+        }
+      ],
+      "setBonusInfo": "ロックオン距離UP（+5m）、SP供給率UP（+5%）",
+      "partsBgImage": "url(\"./image/bland_jinga.png\")"
+    },
+    "raika": {
+      "name": "雷花",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "booster",
+          "setBonusValue": 5
+        },
+        {
+          "setBonusParamName": "areaTransport",
+          "setBonusValue": 0.5
+        }
+      ],
+      "setBonusInfo": "ブースターUP（+5）、エリア移動速度UP（-0.5sec）",
+      "partsBgImage": "url(\"./image/bland_raika.png\")"
+    },
+    "rosie": {
+      "name": "ロージー",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "armor",
+          "setBonusValue": 5
+        }
+      ],
+      "setBonusInfo": "装甲UP（+5%）",
+      "partsBgImage": "url(\"./image/bland_rosie.png\")"
+    },
+    "buz": {
+      "name": "B.U.Z.",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "ndefChargeRate",
+          "setBonusValue": 7
+        },
+        {
+          "setBonusParamName": "walk",
+          "setBonusValue": 0.6
+        }
+      ],
+      "setBonusInfo": "DEF回復UP（7%）、歩行速度UP（+0.60m/s）",
+      "partsBgImage": "url(\"./image/bland_buz.png\")"
+    },
+    "landbulk": {
+      "name": "ランドバルク",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "reloadRate",
+          "setBonusValue": 3
+        },
+        {
+          "setBonusParamName": "loadCapacity",
+          "setBonusValue": 150
+        }
+      ],
+      "setBonusInfo": "リロード速度UP（+3%）、重量耐性UP（+150）",
+      "partsBgImage": "url(\"./image/bland_landbulk.png\")"
+    },
+    "formula": {
+      "name": "フォーミュラ",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "dash",
+          "setBonusValue": 0.72
+        },
+        {
+          "setBonusParamName": "velocityTimeSec",
+          "setBonusValue": -0.54
+        }
+      ],
+      "setBonusInfo": "ダッシュ速度UP（+0.72m/s）、加速UP（-0.54sec）",
+      "partsBgImage": "url(\"./image/bland_formula.png\")"
+    },
+    "jade": {
+      "name": "ヤーデ",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "lockOn",
+          "setBonusValue": 5
+        },
+        {
+          "setBonusParamName": "dash",
+          "setBonusValue": 0.6
+        }
+      ],
+      "setBonusInfo": "ロックオン距離UP（+5m）、ダッシュ速度UP（+0.60m/s）",
+      "partsBgImage": "url(\"./image/bland_jade.png\")"
+    },
+    "asura": {
+      "name": "アスラ",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "aim",
+          "setBonusValue": 2
+        },
+        {
+          "setBonusParamName": "weaponChange",
+          "setBonusValue": 5
+        }
+      ],
+      "setBonusInfo": "射撃補正UP（+2%）、武器変更UP（+5%）",
+      "partsBgImage": "url(\"./image/bland_asura.png\")"
+    },
+    "jixien": {
+      "name": "ジーシェン",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "areaTransport",
+          "setBonusValue": 0.5
+        },
+        {
+          "setBonusParamName": "velocityTimeSec",
+          "setBonusValue": -0.54
+        }
+      ],
+      "setBonusInfo": "エリア移動速度UP（-0.5sec）、加速UP（-0.54sec）",
+      "partsBgImage": "url(\"./image/bland_jixien.png\")"
+    },
+    "getsuei": {
+      "name": "月影",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "reloadRate",
+          "setBonusValue": 3
+        },
+        {
+          "setBonusParamName": "weaponChange",
+          "setBonusValue": 5
+        }
+      ],
+      "setBonusInfo": "リロード速度UP（+3%）、武器変更UP（+5%）",
+      "partsBgImage": "url(\"./image/bland_getsuei.png\")"
+    },
+    "specter": {
+      "name": "スペクター",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "booster",
+          "setBonusValue": 3
+        },
+        {
+          "setBonusParamName": "loadCapacity",
+          "setBonusValue": 150
+        }
+      ],
+      "setBonusInfo": "ブースターUP（+3）、重量耐性UP（+150）",
+      "partsBgImage": "url(\"./image/bland_specter.png\")"
+    },
+    "greif": {
+      "name": "グライフ",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "ndefChargeRate",
+          "setBonusValue": 7
+        },
+        {
+          "setBonusParamName": "ndefCapacity",
+          "setBonusValue": 250
+        }
+      ],
+      "setBonusInfo": "DEF回復UP（+7%）、DEF耐久UP（+250）",
+      "partsBgImage": "url(\"./image/bland_greif.png\")"
+    },
+    "ztl": {
+      "name": "Z",
+      "weightClass": "lt",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "ndefChargeRate",
+          "setBonusValue": 7
+        },
+        {
+          "setBonusParamName": "dash",
+          "setBonusValue": 0.6
+        }
+      ],
+      "setBonusInfo": "DEF回復UP（7%）、ダッシュ速度UP（+0.60m/s）",
+      "shortId": "C",
+      "partsBgImage": "url(\"\")"
+    },
+    "zaoren": {
+      "name": "ザオレン",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "subMagRate",
+          "setBonusValue": 3
+        },
+        {
+          "setBonusParamName": "spSupply",
+          "setBonusValue": 5
+        }
+      ],
+      "setBonusInfo": "予備弾数UP（+3%）、SP供給率UP（+5%）",
+      "partsBgImage": "url(\"./image/bland_zaoren.png\")"
+    },
+    "garm": {
+      "name": "ガルム",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "ndefCapacity",
+          "setBonusValue": 250
+        },
+        {
+          "setBonusParamName": "velocityTimeSec",
+          "setBonusValue": -0.54
+        }
+      ],
+      "setBonusInfo": "DEF耐久UP（+250）、加速UP（-0.54sec）",
+      "partsBgImage": "url(\"./image/bland_garm.png\")"
+    },
+    "ironfort": {
+      "name": "アイアンフォート",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "weaponChange",
+          "setBonusValue": 5
+        },
+        {
+          "setBonusParamName": "subMagRate",
+          "setBonusValue": 3
+        }
+      ],
+      "setBonusInfo": "武器変更UP（+5%）、予備弾数UP（3%）",
+      "partsBgImage": "url(\"./image/bland_ironfort.png\")"
+    },
+    "xie": {
+      "name": "X",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "reloadRate",
+          "setBonusValue": 3
+        },
+        {
+          "setBonusParamName": "loadCapacity",
+          "setBonusValue": 150
+        }
+      ],
+      "setBonusInfo": "リロード速度UP（+3%）、重量耐性UP（+150）",
+      "partsBgImage": "url(\"\")"
+    },
+    "yama": {
+      "name": "ヤマ",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "ndefCapacity",
+          "setBonusValue": 500
+        }
+      ],
+      "setBonusInfo": "DEF耐久UP（+500）",
+      "partsBgImage": "url(\"\")"
+    },
+    "plus": {
+      "name": "PLUS:G",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "armor",
+          "setBonusValue": 3
+        },
+        {
+          "setBonusParamName": "loadCapacity",
+          "setBonusValue": 150
+        }
+      ],
+      "setBonusInfo": "装甲UP（+3%）、重量耐性UP（+150）",
+      "partsBgImage": "url(\"\")"
+    },
+    "pluss": {
+      "name": "PLUS:S",
+      "setBonusObj": [
+        {
+          "setBonusParamName": "ndefCapacity",
+          "setBonusValue": 250
+        },
+        {
+          "setBonusParamName": "walk",
+          "setBonusValue": 0.45
+        }
+      ],
+      "setBonusInfo": "DEF耐久UP（+250）、歩行速度UP（+0.45m/s）",
+      "partsBgImage": "url(\"\")"
+    }
+  }
+}
