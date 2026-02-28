@@ -46,18 +46,19 @@ BorderBreakシミュレーター/
 │   ├── __init__.py
 │   ├── test_core.py         # Core クラスのテスト（25件）
 │   ├── test_plant.py        # Plant クラスのテスト（42件）
-│   ├── test_agent.py        # Agent クラスのテスト（48件）
-│   ├── test_brain.py                 # Brain / GreedyBaseAttackBrain のテスト（28件）
-│   ├── test_plant_capture_brain.py   # PlantCaptureBrain のテスト（25件）
-│   ├── test_detection.py             # 被索敵状態のテスト（20件）
-│   └── test_simulation.py            # Simulation 戦闘ロジックのテスト（59件）
+│   ├── test_agent.py        # Agent クラスのテスト（53件）
+│   ├── test_brain.py                      # Brain / GreedyBaseAttackBrain のテスト（28件）
+│   ├── test_plant_capture_brain.py        # PlantCaptureBrain のテスト（25件）
+│   ├── test_aggressive_combat_brain.py    # AggressiveCombatBrain のテスト（18件）
+│   ├── test_detection.py                  # 被索敵状態のテスト（20件）
+│   └── test_simulation.py                 # Simulation 戦闘ロジックのテスト（59件）
 └── logs/
     └── dev/             # 開発用 CSV ログ出力先
         ├── steps_YYYYMMDD_HHMMSS.csv
         └── events_YYYYMMDD_HHMMSS.csv
 ```
 
-**テスト合計: 247 件（全件グリーン）**
+**テスト合計: 270 件（全件グリーン）**
 
 ---
 
@@ -142,6 +143,18 @@ Action.STAY / MOVE_UP / MOVE_DOWN / MOVE_LEFT / MOVE_RIGHT
 ACTION_DELTA: dict[Action, tuple[int, int]]  # (dx, dy)
 ```
 
+### `Role`（Enum）
+
+| 値 | ロール名 | 説明 |
+|---|---|---|
+| `ASSAULT` | 突撃型 | **現フェーズのデフォルト。全 BR はこのロールに固定** |
+| `HEAVY_ASSAULT` | 重撃型 | 今後実装予定 |
+| `SUPPORT` | 支援型 | 今後実装予定 |
+| `SNIPER` | 狙撃型 | 今後実装予定 |
+
+> ロールごとの固有パラメータ（HP・移動速度・射程・DPSなど）および
+> ロール専用 Brain の実装は今後のフェーズで行う。
+
 ### `Brain` / `GreedyBaseAttackBrain`
 
 - `Brain`：`decide(agent, map, plants, agents) -> Action` を持つ基底クラス
@@ -157,10 +170,18 @@ ACTION_DELTA: dict[Action, tuple[int, int]]  # (dx, dy)
      - チームA（上端ベース）: y 最小の未占拠プラント
      - チームB（下端ベース）: y 最大の未占拠プラント
   4. **PATROL**（全プラント自チーム占拠済みまたはプラントなし）: 敵ベースへ
+- `AggressiveCombatBrain(target)` — 4状態の戦闘重視戦略（`GreedyBaseAttackBrain` のサブクラス）
+  1. **ATTACK**（ロックオン内）: `STAY`
+  2. **APPROACH**（索敵内・ロックオン外）: 最近接の可視敵へ貪欲移動
+  3. **HUNT**（索敵範囲外だが `detected=True` の敵がいる）: 味方が発見済みの敵を追撃
+     - `enemy.detected == True` → 自チームの誰かが既に捕捉した敵
+     - 複数いる場合は最近接を選択
+  4. **PATROL**（追跡対象なし）: 敵ベースへ貪欲移動
 
 ### `Agent`（ブラスト・ランナー）
 
 - `agent_id`, `x`, `y`, `team`, `hp`, `max_hp`, `alive`, `respawn_timer`, `brain`
+- `role`（Role, デフォルト `Role.ASSAULT`）: ロール（現フェーズは全員 ASSAULT に固定）
 - `detected`（bool, 初期値 False）: 被索敵状態（True=敵に位置情報を把握されている）
 - `exposure_steps`（int, 初期値 0）: 敵の索敵範囲内にいる連続ステップ数
 - `move(dx, dy, map) -> bool` / `move_up/down/left/right(map)`
@@ -329,11 +350,15 @@ capture_gauge = clamp(capture_gauge + net, -10, +10)
 - [x] ベース再出撃地点（`get_base_spawn_points(team)`）
 - [x] 試合制限時間（`MATCH_TIME_STEPS=600`）と時間切れ勝敗判定（`_resolve_time_limit()`）
 - [x] 被索敵状態（`Agent.detected` / `Agent.exposure_steps` / `Simulation._update_detection()`）
-- [x] ユニットテスト 247 件（test_core / test_plant / test_agent / test_brain / test_plant_capture_brain / test_detection / test_simulation）
+- [x] AggressiveCombatBrain による戦闘重視戦略（ATTACK / APPROACH / HUNT / PATROL 4状態）
+- [x] Role enum（ASSAULT / HEAVY_ASSAULT / SUPPORT / SNIPER）と Agent.role 属性（現フェーズは全員 ASSAULT）
+- [x] ユニットテスト 270 件（test_core / test_plant / test_agent / test_brain / test_plant_capture_brain / test_aggressive_combat_brain / test_detection / test_simulation）
 
 ## 未実装・次ステップ候補
 
-- [ ] 行動戦略の多様化（プラント占拠専従・役割分担）
+- [ ] ロールごとの固有パラメータ実装（HP・移動速度・射程・DPS など）
+- [ ] ロール専用 Brain の実装（Support による回復、Sniper による遠距離攻撃など）
+- [ ] 行動戦略の多様化（役割分担：AggressiveCombatBrain と PlantCaptureBrain の混成チームなど）
 - [ ] スコア計算（占拠・撃破・回復ポイント）
 - [ ] スコアパラメータを変えた複数回シミュレーション比較・分析
 

@@ -4,6 +4,7 @@ Agent クラスの単体テスト
 
 テスト対象:
   - Agent の初期状態（hp / max_hp / alive / respawn_timer / brain / pos / pos_m）
+  - Agent.role — ロール属性（デフォルト=Role.ASSAULT）
   - Agent.move() および move_up/down/left/right()
   - Agent.dist_cells() — ユークリッド距離
   - Agent.in_search_range() — 索敵範囲（SEARCH_RANGE_C = 8.0）
@@ -12,7 +13,7 @@ Agent クラスの単体テスト
 import math
 import pytest
 from simulation import (
-    Agent, Map, CellType,
+    Agent, Map, CellType, Role,
     AGENT_HP, CELL_SIZE_M,
     SEARCH_RANGE_C, LOCKON_RANGE_C,
 )
@@ -334,3 +335,40 @@ class TestInLockonRange:
         """a→b と b→a の結果は等しい"""
         a, b = self._pair(0, 0, 5, 0)
         assert a.in_lockon_range(b) == b.in_lockon_range(a)
+
+
+# ─────────────────────────────────────────
+# Role 属性
+# ─────────────────────────────────────────
+class TestAgentRole:
+    """
+    Agent.role — ロール属性のテスト。
+    現フェーズでは全エージェントが Assault に固定されている。
+    """
+
+    def test_default_role_is_assault(self):
+        """デフォルトロールは Role.ASSAULT"""
+        assert make_agent().role is Role.ASSAULT
+
+    def test_role_can_be_set_to_heavy_assault(self):
+        """role=Role.HEAVY_ASSAULT を指定できる"""
+        a = Agent(agent_id=1, x=5, y=25, team=0, role=Role.HEAVY_ASSAULT)
+        assert a.role is Role.HEAVY_ASSAULT
+
+    def test_role_can_be_set_to_support(self):
+        """role=Role.SUPPORT を指定できる"""
+        a = Agent(agent_id=1, x=5, y=25, team=0, role=Role.SUPPORT)
+        assert a.role is Role.SUPPORT
+
+    def test_role_can_be_set_to_sniper(self):
+        """role=Role.SNIPER を指定できる"""
+        a = Agent(agent_id=1, x=5, y=25, team=0, role=Role.SNIPER)
+        assert a.role is Role.SNIPER
+
+    def test_role_enum_has_four_members(self):
+        """Role enum は Assault / HeavyAssault / Support / Sniper の4種類"""
+        assert len(Role) == 4
+        assert Role.ASSAULT in Role
+        assert Role.HEAVY_ASSAULT in Role
+        assert Role.SUPPORT in Role
+        assert Role.SNIPER in Role

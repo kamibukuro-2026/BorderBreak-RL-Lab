@@ -192,6 +192,43 @@ ACTION_DELTA: dict[Action, tuple[int, int]] = {
 
 
 # ─────────────────────────────────────────
+# ロール定義
+# ─────────────────────────────────────────
+class Role(Enum):
+    """BR（ブラスト・ランナー）のロール。"""
+    ASSAULT       = auto()   # 突撃型（現フェーズではデフォルト）
+    HEAVY_ASSAULT = auto()   # 重撃型
+    SUPPORT       = auto()   # 支援型
+    SNIPER        = auto()   # 狙撃型
+
+
+# ─────────────────────────────────────────
+# ロール別画像アセット
+# ─────────────────────────────────────────
+_ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets')
+_ROLE_IMAGE_FILES: dict[Role, str] = {
+    Role.ASSAULT:       'assult.png',
+    Role.HEAVY_ASSAULT: 'heavy_assult.png',
+    Role.SUPPORT:       'support.png',
+    Role.SNIPER:        'sniper.png',
+}
+_role_image_cache: dict = {}
+
+
+def _get_role_image(role: Role):
+    """ロールに対応する画像配列を返す。読み込み失敗時は None。"""
+    if role not in _role_image_cache:
+        fname = _ROLE_IMAGE_FILES.get(role)
+        try:
+            _role_image_cache[role] = plt.imread(
+                os.path.join(_ASSETS_DIR, fname)
+            )
+        except Exception:
+            _role_image_cache[role] = None
+    return _role_image_cache[role]
+
+
+# ─────────────────────────────────────────
 # 行動戦略（Brain）
 # ─────────────────────────────────────────
 class Brain:
@@ -319,6 +356,47 @@ class PlantCaptureBrain(GreedyBaseAttackBrain):
         return self._move_toward(agent, *self.target, game_map)
 
 
+class AggressiveCombatBrain(GreedyBaseAttackBrain):
+    """
+    戦闘重視の戦略。マップ上で可視化された敵（detected=True）を積極的に追撃する。
+
+    行動状態（優先順）:
+      1. ATTACK  : ロックオン距離（LOCKON_RANGE_C）内に敵がいる
+                   → STAY（足を止めて射撃）
+      2. APPROACH: 索敵範囲（SEARCH_RANGE_C）内・ロックオン外の敵がいる
+                   → 最も近い敵へ貪欲移動
+      3. HUNT    : 索敵範囲外だが detected=True の敵がいる
+                   → 最近接 detected 敵へ貪欲移動
+      4. PATROL  : 追跡対象なし → 目標（敵ベース）へ貪欲移動
+    """
+
+    def decide(self, agent: Agent, game_map: Map,
+               plants: list[Plant], agents: list[Agent]) -> Action:
+        del plants  # 未使用
+
+        enemies = [a for a in agents if a.alive and a.team != agent.team]
+        visible = [e for e in enemies if agent.in_search_range(e)]
+
+        if visible:
+            nearest = min(visible, key=lambda e: agent.dist_cells(e))
+
+            # 状態1 ATTACK: ロックオン距離内 → 足を止めて射撃
+            if agent.in_lockon_range(nearest):
+                return Action.STAY
+
+            # 状態2 APPROACH: 索敵範囲内 → 最も近い敵へ接近
+            return self._move_toward(agent, nearest.x, nearest.y, game_map)
+
+        # 状態3 HUNT: detected=True の敵（味方が発見済み）を追撃
+        detected_enemies = [e for e in enemies if e.detected]
+        if detected_enemies:
+            target = min(detected_enemies, key=lambda e: agent.dist_cells(e))
+            return self._move_toward(agent, target.x, target.y, game_map)
+
+        # 状態4 PATROL: 追跡対象なし → 敵ベースへ直進
+        return self._move_toward(agent, *self.target, game_map)
+
+
 # ─────────────────────────────────────────
 # エージェント（ブラスト・ランナー）
 # ─────────────────────────────────────────
@@ -326,11 +404,13 @@ class Agent:
     TEAM_COLORS = {0: "#1a6fb5", 1: "#c0392b"}
 
     def __init__(self, agent_id: int, x: int, y: int, team: int,
-                 brain: Brain | None = None):
+                 brain: Brain | None = None,
+                 role: Role = Role.ASSAULT):
         self.agent_id      = agent_id
         self.x             = x
         self.y             = y
         self.team          = team          # 0 = チームA, 1 = チームB
+        self.role          = role          # ロール（現フェーズは全員 ASSAULT）
         self.hp            = AGENT_HP      # 現在HP
         self.max_hp        = AGENT_HP      # 最大HP（HP バー表示用）
         self.alive         = True
@@ -520,7 +600,18 @@ class Simulation:
                 continue
             color = Agent.TEAM_COLORS[agent.team]
             cx_a, cy_a = agent.x + 0.5, agent.y + 0.5
-            ax.add_patch(plt.Circle((cx_a, cy_a), 0.38, color=color, zorder=6))
+            img = _get_role_image(agent.role)
+            if img is not None:
+                # チームカラーのリングを背面に描画
+                ax.add_patch(plt.Circle((cx_a, cy_a), 0.44,
+                                        color=color, zorder=5, linewidth=0))
+                # ロール画像（inverted y-axis: extent=[left,right,bottom,top]）
+                r = 0.38
+                ax.imshow(img,
+                          extent=[cx_a - r, cx_a + r, cy_a + r, cy_a - r],
+                          zorder=6, interpolation='bilinear')
+            else:
+                ax.add_patch(plt.Circle((cx_a, cy_a), 0.38, color=color, zorder=6))
             ax.text(cx_a, cy_a, str(agent.agent_id),
                     ha="center", va="center",
                     fontsize=8, color="white", fontweight="bold", zorder=7)
@@ -1216,7 +1307,7 @@ if __name__ == "__main__":
     #
     # チームA (team=0): Base A 出口行（y=2）に x=0..9 の 10 機
     # チームB (team=1): Base B 出口行（y=47）に x=0..9 の 10 機
-    # 全機が GreedyBaseAttackBrain で敵ベース中心を目標にする
+    # 各機の戦略はシミュレーション開始時にランダムで決定する
     # ─────────────────────────────────────────
     NUM_AGENTS  = 10          # 1チームあたりの機数
     START_Y_A   = BASE_DEPTH - 1          # y = 2  (Base A 出口)
@@ -1224,29 +1315,33 @@ if __name__ == "__main__":
     target_a    = (MAP_W // 2, MAP_H - BASE_DEPTH // 2 - 1)   # (5, 48)
     target_b    = (MAP_W // 2, BASE_DEPTH // 2)                # (5, 1)
 
+    BRAIN_CLASSES = [GreedyBaseAttackBrain, PlantCaptureBrain, AggressiveCombatBrain]
+
     sim = Simulation(game_map, plants)
 
     print(f"\n--- チームA  {NUM_AGENTS}機  (Base A y={START_Y_A})  → target {target_a} ---")
     for i in range(NUM_AGENTS):
+        brain_cls = random.choice(BRAIN_CLASSES)
         agent = Agent(
             agent_id=i + 1,
             x=i, y=START_Y_A,
             team=0,
-            brain=GreedyBaseAttackBrain(target=target_a),
+            brain=brain_cls(target=target_a),
         )
         sim.add_agent(agent)
-        print(f"  BR{agent.agent_id:>2}: ({agent.x}, {agent.y})")
+        print(f"  BR{agent.agent_id:>2}: ({agent.x}, {agent.y})  [{brain_cls.__name__}]")
 
     print(f"\n--- チームB  {NUM_AGENTS}機  (Base B y={START_Y_B})  → target {target_b} ---")
     for i in range(NUM_AGENTS):
+        brain_cls = random.choice(BRAIN_CLASSES)
         agent = Agent(
             agent_id=NUM_AGENTS + i + 1,
             x=i, y=START_Y_B,
             team=1,
-            brain=GreedyBaseAttackBrain(target=target_b),
+            brain=brain_cls(target=target_b),
         )
         sim.add_agent(agent)
-        print(f"  BR{agent.agent_id:>2}: ({agent.x}, {agent.y})")
+        print(f"  BR{agent.agent_id:>2}: ({agent.x}, {agent.y})  [{brain_cls.__name__}]")
 
     print()
 
