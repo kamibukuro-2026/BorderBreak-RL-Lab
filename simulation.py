@@ -47,6 +47,7 @@ CELLS_PER_STEP    = max(1, round(MOVE_SPEED_MPS / CELL_SIZE_M))  # 2 cells/step 
 CORE_HP           = 266_666          # コアの初期HP（160機撃破でゼロになる値）
 CORE_DMG_PER_KILL = CORE_HP / 160    # BR1機撃破→リスポーン時に自チームコアへ入るダメージ（≈1,666.67）
 MATCH_TIME_STEPS  = 600              # 試合制限時間（10分 × 60秒/ステップ）
+DETECTION_STEPS   = 3               # 被索敵状態になるまでの連続索敵ステップ数
 
 
 # ─────────────────────────────────────────
@@ -335,6 +336,8 @@ class Agent:
         self.alive         = True
         self.respawn_timer = 0             # 0=生存中, >0=リスポーン待ちの残ステップ数
         self.brain         = brain         # 行動戦略（None なら手動操作）
+        self.detected       = False        # 被索敵状態（True=敵に位置情報を把握されている）
+        self.exposure_steps = 0            # 敵の索敵範囲内にいる連続ステップ数
 
     def move(self, dx: int, dy: int, game_map: Map) -> bool:
         nx, ny = self.x + dx, self.y + dy
@@ -706,6 +709,31 @@ class Simulation:
 
         return events
 
+    # ── 被索敵状態の更新 ──────────────────────────────────
+    def _update_detection(self):
+        """
+        全エージェントの被索敵状態（detected / exposure_steps）を更新する。
+
+        ルール:
+          - 死亡エージェント: exposure_steps=0, detected=False にリセット
+          - 生存エージェントが敵の索敵範囲内: exposure_steps += 1
+          - 索敵範囲外に出た: exposure_steps = 0
+          - ロックオン範囲内に敵がいる、または exposure_steps >= DETECTION_STEPS → detected=True
+        """
+        for agent in self.agents:
+            if not agent.alive:
+                agent.exposure_steps = 0
+                agent.detected = False
+                continue
+            enemies = [a for a in self.agents if a.alive and a.team != agent.team]
+            in_search = any(e.in_search_range(agent) for e in enemies)
+            locked_on = any(e.in_lockon_range(agent) for e in enemies)
+            if in_search:
+                agent.exposure_steps += 1
+            else:
+                agent.exposure_steps = 0
+            agent.detected = locked_on or agent.exposure_steps >= DETECTION_STEPS
+
     # ── 制限時間勝敗判定 ──────────────────────────────────
     def _resolve_time_limit(self) -> int | None:
         """
@@ -915,6 +943,9 @@ class Simulation:
 
                 # ── ベース攻撃（コアダメージ） ──
                 core_events = self._update_cores()
+
+                # ── 被索敵状態更新 ──
+                self._update_detection()
 
                 # ── ステップスナップショット（開発ログ用） ──
                 self._step_log.append({

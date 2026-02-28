@@ -49,6 +49,7 @@ BorderBreakシミュレーター/
 │   ├── test_agent.py        # Agent クラスのテスト（48件）
 │   ├── test_brain.py                 # Brain / GreedyBaseAttackBrain のテスト（28件）
 │   ├── test_plant_capture_brain.py   # PlantCaptureBrain のテスト（25件）
+│   ├── test_detection.py             # 被索敵状態のテスト（20件）
 │   └── test_simulation.py            # Simulation 戦闘ロジックのテスト（59件）
 └── logs/
     └── dev/             # 開発用 CSV ログ出力先
@@ -56,7 +57,7 @@ BorderBreakシミュレーター/
         └── events_YYYYMMDD_HHMMSS.csv
 ```
 
-**テスト合計: 227 件（全件グリーン）**
+**テスト合計: 247 件（全件グリーン）**
 
 ---
 
@@ -84,6 +85,7 @@ RESPAWN_STEPS     = 10
 MOVE_SPEED_MPS    = 21.9
 CELLS_PER_STEP    = 2       # max(1, round(21.9/10))
 MATCH_TIME_STEPS  = 600     # 試合制限時間（10分 × 60秒/ステップ）
+DETECTION_STEPS   = 3       # 被索敵状態になるまでの連続索敵ステップ数
 
 # コア定数
 CORE_HP           = 266_666
@@ -159,6 +161,8 @@ ACTION_DELTA: dict[Action, tuple[int, int]]  # (dx, dy)
 ### `Agent`（ブラスト・ランナー）
 
 - `agent_id`, `x`, `y`, `team`, `hp`, `max_hp`, `alive`, `respawn_timer`, `brain`
+- `detected`（bool, 初期値 False）: 被索敵状態（True=敵に位置情報を把握されている）
+- `exposure_steps`（int, 初期値 0）: 敵の索敵範囲内にいる連続ステップ数
 - `move(dx, dy, map) -> bool` / `move_up/down/left/right(map)`
 - `dist_cells(other)` → ユークリッド距離（セル単位）
 - `in_search_range(other)` → `dist_cells <= SEARCH_RANGE_C`
@@ -180,6 +184,7 @@ ACTION_DELTA: dict[Action, tuple[int, int]]  # (dx, dy)
 | `_process_respawns()` | タイマー更新・リスポーン・コアキルペナルティ |
 | `_update_plants()` | 占拠ゲージ更新 |
 | `_update_cores()` | ベース内敵 BR からのコアダメージ |
+| `_update_detection()` | 全エージェントの被索敵状態（detected/exposure_steps）を更新 |
 | `run(max_steps, step_delay, verbose)` | アニメーション実行ループ |
 | `save_dev_logs(base_dir)` | 開発用 CSV ログを保存 |
 
@@ -187,8 +192,8 @@ ACTION_DELTA: dict[Action, tuple[int, int]]  # (dx, dy)
 
 ```
 行動決定（Brain.decide） → _resolve_combat() → _process_respawns()
-→ _update_plants() → _update_cores() → スナップショット記録
-→ 勝敗判定（コア破壊） → 制限時間判定 → 描画
+→ _update_plants() → _update_cores() → _update_detection()
+→ スナップショット記録 → 勝敗判定（コア破壊） → 制限時間判定 → 描画
 ```
 
 ### モジュールレベル関数
@@ -323,7 +328,8 @@ capture_gauge = clamp(capture_gauge + net, -10, +10)
 - [x] プラント再出撃地点（`Plant.get_spawn_points(team)`）とリスポーン位置の分散
 - [x] ベース再出撃地点（`get_base_spawn_points(team)`）
 - [x] 試合制限時間（`MATCH_TIME_STEPS=600`）と時間切れ勝敗判定（`_resolve_time_limit()`）
-- [x] ユニットテスト 227 件（test_core / test_plant / test_agent / test_brain / test_plant_capture_brain / test_simulation）
+- [x] 被索敵状態（`Agent.detected` / `Agent.exposure_steps` / `Simulation._update_detection()`）
+- [x] ユニットテスト 247 件（test_core / test_plant / test_agent / test_brain / test_plant_capture_brain / test_detection / test_simulation）
 
 ## 未実装・次ステップ候補
 
