@@ -20,6 +20,7 @@ from constants import (
     CORE_HP, CORE_DMG_PER_KILL, MATCH_TIME_STEPS, DETECTION_STEPS,
     LOCKON_BONUS, DIST_PENALTY_MAX, MISS_FLOOR_PER_SHOT,
     AIM_PARAM_BASE, AIM_SCALE, HIT_RATE_MIN, HIT_RATE_MAX,
+    CRUISE_CONSUME_PER_STEP, CRUISE_START_COST, BOOST_REGEN_PER_STEP,
 )
 from game_types import (
     CELL_COLORS, CellType, ACTION_DELTA, Action, Role, Plant, Core, Map,
@@ -555,6 +556,10 @@ class Simulation:
                 agent.y      = spawn_y
                 agent.hp     = agent.max_hp   # loadout.max_hp またはデフォルト AGENT_HP
                 agent.alive  = True
+                # T-3: ブーストゲージをフルに回復
+                if agent.boost_max > 0:
+                    agent.boost = float(agent.boost_max)
+                    agent.is_cruising = False
                 team_str = "A" if agent.team == 0 else "B"
                 events.append(
                     f"  ★ BR{agent.agent_id}(チーム{team_str}) が {spawn_desc} からリスポーン！"
@@ -576,13 +581,47 @@ class Simulation:
         return events
 
     # ── アクション実行 ───────────────────────────────────
+    def _get_move_cells(self, agent: Agent) -> int:
+        """
+        移動時の実際のセル数を返す。
+
+        boost_max=0（デフォルト）: 後方互換モード → cells_per_step を使用。
+        boost_max>0: ブーストゲージに応じて dash / walk を切り替える。
+          - ブースト十分 → dash_cells_per_step を使用、ゲージ消費
+          - ブースト不足 → walk_cells_per_step を使用、ゲージ回復
+        """
+        if agent.boost_max == 0:
+            return agent.cells_per_step  # 後方互換
+
+        # ブースト消費計算（巡航開始時は追加コストあり）
+        cost = CRUISE_CONSUME_PER_STEP
+        if not agent.is_cruising:
+            cost += CRUISE_START_COST
+
+        if agent.boost >= cost:
+            agent.boost = max(0.0, agent.boost - cost)
+            agent.is_cruising = True
+            return agent.dash_cells_per_step
+        else:
+            # ブースト不足 → 歩行 + 回復
+            agent.is_cruising = False
+            agent.boost = min(float(agent.boost_max),
+                              agent.boost + agent.boost_regen)
+            return agent.walk_cells_per_step
+
     def _execute_action(self, agent: Agent, action: Action):
         ddx, ddy = ACTION_DELTA[action]
         if ddx != 0 or ddy != 0:
-            # agent.cells_per_step 分だけ同方向に移動（壁に当たったら中断）
-            for _ in range(agent.cells_per_step):
+            cells = self._get_move_cells(agent)
+            for _ in range(cells):
                 if not agent.move(ddx, ddy, self.game_map):
                     break
+        else:
+            # STAY → ブーストゲージ回復（boost_max=0 では何もしない）
+            if agent.boost_max > 0:
+                agent.boost = min(float(agent.boost_max),
+                                  agent.boost + agent.boost_regen)
+                agent.is_cruising = False
 
     # ── シミュレーション実行（アニメーション） ──────────────
     def run(self, max_steps: int = 60, step_delay: float = 0.15,

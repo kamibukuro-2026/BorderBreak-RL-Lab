@@ -115,6 +115,8 @@ _AIM_PARAM_BASE    = 12.0   # B ランクの aim.param 値
 _AIM_SCALE         = 0.006  # aim 1点あたりの hit_rate 変化量
 _HIT_RATE_MIN      = 0.40   # hit_rate の下限
 _HIT_RATE_MAX      = 1.00   # hit_rate の上限
+# T-3: ブースト回復定数（constants.BOOST_REGEN_PER_STEP と同値、循環 import 回避）
+_BOOST_REGEN_PER_STEP = 15.0
 
 
 def assemble_agent_params(
@@ -127,6 +129,9 @@ def assemble_agent_params(
     default_cells_per_step: int = 2,
     default_hit_rate: float = _HIT_RATE_DEFAULT,
     default_shots_per_step: int = 1,
+    default_walk_cells_per_step: int = 1,
+    default_dash_cells_per_step: int = 0,   # 0 → cells_per_step にフォールバック
+    default_boost_max: int = 0,
 ) -> Dict[str, Any]:
     """
     calc_full() の出力から Agent.__init__ に渡す per-agent パラメータを抽出する。
@@ -190,6 +195,27 @@ def assemble_agent_params(
     rate = main_weapon.get("rate")
     shots_per_step = max(1, round(rate / 60)) if rate is not None else default_shots_per_step
 
+    # T-3: 歩行セル数（walk 速度ベース、最低 1）
+    walk_cells_per_step = (max(1, round(walk / _CELL_SIZE_M))
+                           if walk is not None else default_walk_cells_per_step)
+
+    # T-3: ダッシュセル数（dash 速度ベース、最低 1）
+    dash_param = calc_result.get("base", {}).get("dash", {}).get("param")
+    if dash_param is not None:
+        dash_cells_per_step = max(1, round(dash_param / _CELL_SIZE_M))
+    elif default_dash_cells_per_step > 0:
+        dash_cells_per_step = default_dash_cells_per_step
+    else:
+        dash_cells_per_step = cells_per_step   # cells_per_step にフォールバック
+
+    # T-3: ブースト最大値（draw.body.booster.param）
+    body_draw_ = calc_result.get("draw", {}).get("body", {})
+    booster_param = body_draw_.get("booster", {}).get("param")
+    boost_max = int(booster_param) if booster_param is not None else default_boost_max
+
+    # T-3: ブースト回復（boost_max > 0 のときのみ有効）
+    boost_regen = _BOOST_REGEN_PER_STEP if boost_max > 0 else 0.0
+
     return {
         "max_hp": max_hp,
         "dps": dps,
@@ -198,4 +224,8 @@ def assemble_agent_params(
         "cells_per_step": cells_per_step,
         "hit_rate": hit_rate,
         "shots_per_step": shots_per_step,
+        "walk_cells_per_step": walk_cells_per_step,
+        "dash_cells_per_step": dash_cells_per_step,
+        "boost_max": boost_max,
+        "boost_regen": boost_regen,
     }

@@ -92,7 +92,11 @@ class Agent:
                  shots_per_step: int = 1,
                  search_range_c: float = SEARCH_RANGE_C,
                  lockon_range_c: float = LOCKON_RANGE_C,
-                 cells_per_step: int = CELLS_PER_STEP):
+                 cells_per_step: int = CELLS_PER_STEP,
+                 boost_max: int = 0,
+                 boost_regen: float = 0.0,
+                 walk_cells_per_step: int = 1,
+                 dash_cells_per_step: int = CELLS_PER_STEP):
         self.agent_id       = agent_id
         self.x              = x
         self.y              = y
@@ -130,6 +134,14 @@ class Agent:
             self.search_range_c = search_range_c
             self.lockon_range_c = lockon_range_c
             self.cells_per_step = cells_per_step
+
+        # T-3: ブースト巡航パラメータ（boost_max=0 は後方互換：ブーストシステム無効）
+        self.boost_max           = boost_max
+        self.boost               = float(boost_max)   # フルスタート
+        self.boost_regen         = boost_regen
+        self.walk_cells_per_step = walk_cells_per_step
+        self.dash_cells_per_step = dash_cells_per_step
+        self.is_cruising         = False
 
         self.hp = self.max_hp  # 現在HP（max_hp で初期化）
 

@@ -59,19 +59,22 @@ BorderBreakシミュレーター/
 │   ├── rank_param.json        # ランク→数値変換テーブル
 │   ├── sys_calc_constants.json  # 重量ペナルティ・速度下限などのシステム定数
 │   ├── bland_data.json        # ブランド（セットボーナス）定義
-│   └── parts_param_config.json  # パーツパラメータの上下限設定
+│   ├── parts_param_config.json  # パーツパラメータの上下限設定
+│   └── parts_normalized.json  # パーツ正規化データ（パーツ一覧 496件）
 ├── tests/
 │   ├── __init__.py
 │   ├── test_core.py                        # Core クラスのテスト（25件）
 │   ├── test_plant.py                       # Plant クラスのテスト（42件）
 │   ├── test_agent.py                       # Agent クラスのテスト（53件）
+│   ├── test_agent_boost.py                 # Agent ブーストパラメータのテスト（20件）
 │   ├── test_brain.py                       # Brain / GreedyBaseAttackBrain のテスト（28件）
 │   ├── test_plant_capture_brain.py         # PlantCaptureBrain のテスト（25件）
 │   ├── test_aggressive_combat_brain.py     # AggressiveCombatBrain のテスト（18件）
 │   ├── test_detection.py                   # 被索敵状態のテスト（20件）
 │   ├── test_simulation.py                  # Simulation 戦闘ロジックのテスト（59件）
+│   ├── test_simulation_boost.py            # Simulation ブースト巡航ロジックのテスト（23件）
 │   ├── test_agent_parts.py                 # Agent per-agent パラメータのテスト（25件）
-│   ├── test_assemble.py                    # assemble_agent_params のテスト（30件）
+│   ├── test_assemble.py                    # assemble_agent_params のテスト（57件）
 │   ├── test_simulation_parts.py            # Simulation + per-agent パラメータ統合テスト（20件）
 │   ├── test_weapon_calc.py                 # bb_weapon_calc のテスト（44件）
 │   ├── test_bb_base_and_brand.py           # bb_base_and_brand のテスト（41件）
@@ -84,7 +87,7 @@ BorderBreakシミュレーター/
         └── events_YYYYMMDD_HHMMSS.csv
 ```
 
-**テスト合計: 519 件（全件グリーン）**
+**テスト合計: 636 件（全件グリーン）**
 
 ### シミュレーターモジュールの依存関係
 
@@ -402,6 +405,11 @@ capture_gauge = clamp(capture_gauge + net, -10, +10)
 - [x] per-agent パラメータのユニットテスト 75 件（test_agent_parts / test_assemble / test_simulation_parts）
 - [x] simulation.py を論理単位ごとに5ファイルへ分割（constants / game_types / brain / agent / map_gen）
 - [x] AgentLoadout / RoleLoadout データクラスの定義と Agent.loadout パラメータの追加
+- [x] T-1: `max_hp` の可変化（body: armor → `実効HP = 基準HP / armor.param`）
+- [x] T-2: `hit_rate` の可変化（head: aim → 決定論的 DPS 分率モデルに移行、`_calc_hit_fraction()` 実装）
+- [x] T-3: ブースト巡航システムの実装（boost_max / boost_regen / walk_cells_per_step / dash_cells_per_step / is_cruising、assemble_agent_params に4キー追加）
+- [x] parts_normalized.json の追加（496 パーツ）
+- [x] ブーストテスト 70 件（test_agent_boost / test_simulation_boost / test_assemble 拡張）
 
 ## 今後の実装タスク
 
@@ -424,11 +432,25 @@ capture_gauge = clamp(capture_gauge + net, -10, +10)
 - `Agent` に `hit_rate` 属性を追加
 - `Simulation._resolve_combat()` で `agent.hit_rate` を参照するよう変更
 
-#### T-3. 移動速度の基準をダッシュ速度に変更するか検討（leg: dash）
-- **現状**: `walk.param / 10` で cells_per_step を計算（歩行速度ベース）
-- **検討**: 実ゲームの平地移動の大半はダッシュ（ブースター消費）であり、`dash.param / 10` が実態に近い可能性
-- ブースター管理（T-9）を実装しない場合は walk のままで問題なし
-- **要決定**: walk と dash のどちらを基準にするか
+#### T-3. ブースト巡航システム ✅ 実装済み
+- walk/dash の2段階移動速度と boost ゲージ管理を実装
+- `Agent`: `boost_max`, `boost`, `boost_regen`, `walk_cells_per_step`, `dash_cells_per_step`, `is_cruising` を追加
+- `Simulation._get_move_cells()` で巡航判定、`_execute_action()` / `_process_respawns()` を更新
+- `assemble_agent_params()` に 4 キー追加（walk_cells_per_step / dash_cells_per_step / boost_max / boost_regen）
+- `constants.py` に 3 定数追加（CRUISE_CONSUME_PER_STEP=13.8 / CRUISE_START_COST=12.0 / BOOST_REGEN_PER_STEP=15.0）
+
+#### T-3.5. セルサイズの変更（CELL_SIZE_M: 10m → 5m）
+- **現状**: 1セル = 10m のため、walk と cruise 速度がいずれも 1 セル/step に丸まり速度差が生じない
+- **問題**: S ランク leg の dash=28.5m/s を `round(28.5/10) = 3`、walk=10.125 を `round(10.125/10) = 1`
+  だが、cruise=dash×0.6=17.1m/s は `round(17.1/10) = 2` となり walk と差別化はできているものの精度が不足
+- **目標**: 1セル = 5m に変更し、`dash_cells_per_step` の分解能を向上させる
+  - 例: dash=21.9m/s → `round(21.9/5) = 4`、walk=6.75 → `round(6.75/5) = 1`（walk/dash で 1:4 の差）
+- **影響範囲**:
+  - `constants.py`: `CELL_SIZE_M=5`, `MAP_W=20`, `MAP_H=100`, `BASE_DEPTH=6`, `PLANT_RADIUS_C=6.0`
+  - `assemble.py`: ローカル定数 `_CELL_SIZE_M = 5`（SEARCH/LOCKON範囲のセル換算も変わる）
+  - `map_gen.py`: プラント y 座標の等分割計算も自動更新（`np.linspace` ベースなので定数変更で連動）
+  - テスト群: マップ座標を使うテストは座標の再調整が必要
+- **前提**: T-3 実装済み（✅ 完了）
 
 ### フェーズ2: 武器の射撃サイクル実装（優先度：中）
 
@@ -477,7 +499,8 @@ capture_gauge = clamp(capture_gauge + net, -10, +10)
 ### フェーズ5: 高度なパラメータ（優先度：低）
 
 #### T-9. スペシャル武器（SP ゲージ）の実装
-- body: `booster`（SP最大容量）・`spSupply`（SP回復速度）と武器の `spCharge`/`spReboot` の管理
+- body: `spSupply`（SP回復速度）と武器の `spCharge`/`spReboot` の管理
+  - ※ `booster` パラメータはブースト容量（T-3で実装済み）、SP とは別系統
 - スペシャル武器専用の Brain 状態（`USE_SPECIAL`）が必要
 
 #### T-10. 爆発・範囲ダメージの実装
@@ -490,15 +513,16 @@ capture_gauge = clamp(capture_gauge + net, -10, +10)
 ### タスク依存関係
 
 ```
-T-1（armor→max_hp）       独立
-T-2（aim→hit_rate）       独立
-T-3（dash speed 検討）    独立（T-9と連動検討）
+T-1（armor→max_hp）       ✅ 実装済み
+T-2（aim→hit_rate）       ✅ 実装済み
+T-3（ブースト巡航）        ✅ 実装済み
+T-3.5（セルサイズ変更）    T-3 の後（独立）
 T-4（リロード）            独立 ← T-5, T-7 の前提
 T-5（reloadRate反映）     T-4 の後
 T-6（precision→hit_rate） T-2 の後
 T-7（ammo弾切れ）         T-4 の後
 T-8（ロール選択）          独立（T-2, T-4 実装後に効果大）
-T-9（スペシャル）          T-3, T-8 の後
+T-9（スペシャル）          T-8 の後
 T-10（範囲ダメージ）       独立
 T-11（積載量）             独立
 ```
@@ -507,20 +531,22 @@ T-11（積載量）             独立
 
 | 順序 | タスク | 理由 |
 |---|---|---|
-| 1 | T-1 armor → max_hp | 装甲差がロール間の基本差として最重要 |
-| 2 | T-2 aim → hit_rate | 命中率固定がシミュレーション精度に影響大 |
-| 3 | T-8 ロール選択戦略 | T-1/T-2 実装後に複数ロール混成が意味を持つ |
-| 4 | T-4 リロードタイマー | 武器スペックの差を最もよく反映できる |
-| 5 | T-5 reloadRate反映 | T-4 があれば追加コスト小 |
-| 6 | T-7 ammo弾切れ | T-4 があれば追加コスト小 |
-| 7 | T-3, T-6, T-10, T-11 | 状況に応じて |
+| ✅ | T-1 armor → max_hp | 装甲差がロール間の基本差として最重要 |
+| ✅ | T-2 aim → hit_rate | 命中率固定がシミュレーション精度に影響大 |
+| ✅ | T-3 ブースト巡航 | 実ゲームの移動の大半はダッシュ。速度差の再現 |
+| 1 | T-3.5 セルサイズ変更 | 10m→5m で walk/dash の速度分解能が向上 |
+| 2 | T-8 ロール選択戦略 | T-1/T-2 実装後に複数ロール混成が意味を持つ |
+| 3 | T-4 リロードタイマー | 武器スペックの差を最もよく反映できる |
+| 4 | T-5 reloadRate反映 | T-4 があれば追加コスト小 |
+| 5 | T-7 ammo弾切れ | T-4 があれば追加コスト小 |
+| 6 | T-6, T-10, T-11 | 状況に応じて |
 | 後 | T-9 スペシャル | 実装コスト高、優先度は最終段階 |
 
 ### 上位目標
 
 - [ ] スコア計算（占拠・撃破・回復ポイント）の実装
 - [ ] スコアパラメータを変えた複数回シミュレーションの比較・分析
-- [ ] `parts_normalized.json` の追加（パーツ一覧・ルックアップ機能の完全化）
+- [x] `parts_normalized.json` の追加（パーツ一覧 496件）
 
 ---
 

@@ -2,8 +2,8 @@
 catalog.py のユニットテスト（16件）
 
 data/ ディレクトリに存在するファイル（weapons_all.json, rank_param.json,
-sys_calc_constants.json, bland_data.json, parts_param_config.json）を使用する。
-parts_normalized.json は存在しないが、Catalog はそれを graceful に扱う。
+sys_calc_constants.json, bland_data.json, parts_param_config.json,
+parts_normalized.json）を使用する。
 """
 import pytest
 from pathlib import Path
@@ -37,22 +37,29 @@ class TestCatalogInit:
 
 
 # ------------------------------------------------------------------ #
-#  parts（parts_normalized.json なし）                                 #
+#  parts（parts_normalized.json あり）                                 #
 # ------------------------------------------------------------------ #
 
-class TestCatalogPartsWithoutNormalizedFile:
-    def test_list_parts_head_empty(self, catalog):
-        # parts_normalized.json がないため空リストが返る
+class TestCatalogPartsWithNormalizedFile:
+    def test_list_parts_head_nonempty(self, catalog):
+        # parts_normalized.json があるためパーツ一覧が返る
         result = catalog.list_parts("head")
-        assert result == []
+        assert len(result) > 0
 
     def test_list_parts_invalid_category_empty(self, catalog):
         result = catalog.list_parts("invalid_cat")
         assert result == []
 
-    def test_get_part_raises_key_error(self, catalog):
+    def test_get_part_valid_key_returns_dict(self, catalog):
+        # parts_normalized.json にある最初の head パーツが取得できる
+        keys = catalog.list_parts("head")
+        assert len(keys) > 0
+        part = catalog.get_part("head", keys[0][0])
+        assert isinstance(part, dict)
+
+    def test_get_part_nonexistent_key_raises_key_error(self, catalog):
         with pytest.raises(KeyError):
-            catalog.get_part("head", "a")
+            catalog.get_part("head", "nonexistent_key_xyz")
 
     def test_find_part_keys_by_name_empty(self, catalog):
         result = catalog.find_part_keys_by_name("head", "テストヘッド")
