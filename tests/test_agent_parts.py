@@ -99,6 +99,45 @@ class TestAgentPerAgentParamCustom:
 # ─────────────────────────────────────────
 # 既存パラメータへの無影響確認
 # ─────────────────────────────────────────
+class TestAgentMaxHpKwarg:
+    """max_hp キーワード引数のテスト"""
+
+    def test_default_max_hp_equals_agent_hp(self):
+        """max_hp 未指定時のデフォルトは AGENT_HP"""
+        from simulation import AGENT_HP
+        a = make_agent()
+        assert a.max_hp == AGENT_HP
+
+    def test_custom_max_hp_is_stored(self):
+        """max_hp を指定するとその値が格納される"""
+        a = make_agent(max_hp=15000)
+        assert a.max_hp == 15000
+
+    def test_custom_max_hp_initializes_hp(self):
+        """max_hp を指定すると hp も同値で初期化される"""
+        a = make_agent(max_hp=8000)
+        assert a.hp == 8000
+
+    def test_low_max_hp(self):
+        """max_hp=7246（E- 装甲相当）を指定できる"""
+        a = make_agent(max_hp=7246)
+        assert a.max_hp == 7246
+        assert a.hp == 7246
+
+    def test_high_max_hp(self):
+        """max_hp=15873（S 装甲相当）を指定できる"""
+        a = make_agent(max_hp=15873)
+        assert a.max_hp == 15873
+
+    def test_max_hp_does_not_affect_other_attrs(self):
+        """max_hp を変えても dps / team / role などは変わらない"""
+        from simulation import DPS, Role
+        a = make_agent(max_hp=12000)
+        assert a.dps == DPS
+        assert a.team == 0
+        assert a.role == Role.ASSAULT
+
+
 class TestAgentPerAgentParamNoSideEffects:
     def test_custom_params_do_not_affect_hp(self):
         """カスタム dps は hp/max_hp に影響しない"""
