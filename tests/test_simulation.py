@@ -43,8 +43,8 @@ def make_sim(with_bases: bool = False) -> Simulation:
 
 
 def add_agent(sim: Simulation, agent_id: int, x: int, y: int,
-              team: int, hp: int = AGENT_HP) -> Agent:
-    a = Agent(agent_id=agent_id, x=x, y=y, team=team)
+              team: int, hp: int = AGENT_HP, **kwargs) -> Agent:
+    a = Agent(agent_id=agent_id, x=x, y=y, team=team, **kwargs)
     a.hp = hp
     sim.add_agent(a)
     return a
@@ -83,20 +83,24 @@ class TestResolveCombat:
     def test_always_hit_reduces_hp(self):
         """命中時に DPS 分 HP が減る"""
         sim = make_sim()
-        add_agent(sim, 1, 0, 0, team=0)
+        add_agent(sim, 1, 0, 0, team=0, hit_rate=1.0)
         b = add_agent(sim, 2, 0, 5, team=1)   # dist = 5 ≤ 6
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
             sim._resolve_combat()
         assert b.hp == AGENT_HP - DPS
 
-    def test_always_miss_no_damage(self):
-        """外れ時は HP 変化なし"""
-        sim = make_sim()
-        add_agent(sim, 1, 0, 0, team=0)
-        b = add_agent(sim, 2, 0, 5, team=1)
-        with patch('simulation.random.random', return_value=ALWAYS_MISS):
-            sim._resolve_combat()
-        assert b.hp == AGENT_HP
+    def test_combat_is_deterministic(self):
+        """決定論的モデル: 同条件なら毎回同じダメージが入る"""
+        sim1 = make_sim()
+        add_agent(sim1, 1, 0, 0, team=0)
+        b1 = add_agent(sim1, 2, 0, 5, team=1)
+        sim1._resolve_combat()
+        sim2 = make_sim()
+        add_agent(sim2, 1, 0, 0, team=0)
+        b2 = add_agent(sim2, 2, 0, 5, team=1)
+        sim2._resolve_combat()
+        assert b1.hp == b2.hp          # 毎回同じ結果
+        assert b1.hp < AGENT_HP        # ダメージが入っている
 
     def test_dead_agent_does_not_shoot(self):
         """撃破済みエージェントは射撃しない"""
@@ -133,7 +137,7 @@ class TestResolveCombat:
     def test_kill_sets_alive_false(self):
         """HP ≤ 0 → alive=False"""
         sim = make_sim()
-        add_agent(sim, 1, 0, 0, team=0)
+        add_agent(sim, 1, 0, 0, team=0, hit_rate=1.0)
         b = add_agent(sim, 2, 0, 5, team=1, hp=DPS)   # 1 発で撃破される HP
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
             sim._resolve_combat()
@@ -142,7 +146,7 @@ class TestResolveCombat:
     def test_kill_sets_respawn_timer(self):
         """撃破時に respawn_timer = RESPAWN_STEPS"""
         sim = make_sim()
-        add_agent(sim, 1, 0, 0, team=0)
+        add_agent(sim, 1, 0, 0, team=0, hit_rate=1.0)
         b = add_agent(sim, 2, 0, 5, team=1, hp=DPS)
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
             sim._resolve_combat()
@@ -160,8 +164,8 @@ class TestResolveCombat:
     def test_simultaneous_resolution_both_can_die(self):
         """同ステップ内で互いに撃破し合える（同時解決）"""
         sim = make_sim()
-        a = add_agent(sim, 1, 0, 0, team=0, hp=DPS)
-        b = add_agent(sim, 2, 0, 5, team=1, hp=DPS)
+        a = add_agent(sim, 1, 0, 0, team=0, hp=DPS, hit_rate=1.0)
+        b = add_agent(sim, 2, 0, 5, team=1, hp=DPS, hit_rate=1.0)
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
             sim._resolve_combat()
         assert a.alive is False
@@ -173,7 +177,7 @@ class TestResolveCombat:
         # near/far_ は同チームなので互いに撃たない
         # near → shooter、far_ → shooter、shooter → near（最近接）
         sim = make_sim()
-        add_agent(sim, 1, 0, 0, team=0)
+        add_agent(sim, 1, 0, 0, team=0, hit_rate=1.0)
         near  = add_agent(sim, 2, 0, 3, team=1)
         far_  = add_agent(sim, 3, 0, 5, team=1)
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
@@ -187,8 +191,8 @@ class TestResolveCombat:
         # target: dist(s1)=5, dist(s2)=4 → target は s2 を狙う
         # s1 と s2 はともに target を狙う → target が 2×DPS
         sim = make_sim()
-        add_agent(sim, 1, 0, 0, team=0)
-        add_agent(sim, 2, 0, 1, team=0)
+        add_agent(sim, 1, 0, 0, team=0, hit_rate=1.0)
+        add_agent(sim, 2, 0, 1, team=0, hit_rate=1.0)
         target = add_agent(sim, 3, 0, 5, team=1)
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
             sim._resolve_combat()
@@ -206,19 +210,18 @@ class TestResolveCombat:
     def test_kill_event_contains_kill_word(self):
         """撃破イベントに「撃破」が含まれる"""
         sim = make_sim()
-        add_agent(sim, 1, 0, 0, team=0)
+        add_agent(sim, 1, 0, 0, team=0, hit_rate=1.0)
         add_agent(sim, 2, 0, 5, team=1, hp=DPS)
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
             events = sim._resolve_combat()
         assert any("撃破" in e for e in events)
 
-    def test_no_events_when_all_miss(self):
-        """全弾外れ → イベントなし"""
+    def test_no_events_when_out_of_lockon_range(self):
+        """ロックオン範囲外（dist>6）ではイベント発生しない"""
         sim = make_sim()
-        add_agent(sim, 1, 0, 0, team=0)
-        add_agent(sim, 2, 0, 5, team=1)
-        with patch('simulation.random.random', return_value=ALWAYS_MISS):
-            events = sim._resolve_combat()
+        add_agent(sim, 1, 0,  0, team=0)
+        add_agent(sim, 2, 0, 10, team=1)   # dist=10 > LOCKON_RANGE_C=6
+        events = sim._resolve_combat()
         assert events == []
 
 

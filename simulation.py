@@ -18,6 +18,8 @@ from constants import (
     AGENT_HP, DPS, HIT_RATE, SEARCH_RANGE_M, SEARCH_RANGE_C,
     LOCKON_RANGE_M, LOCKON_RANGE_C, RESPAWN_STEPS, MOVE_SPEED_MPS, CELLS_PER_STEP,
     CORE_HP, CORE_DMG_PER_KILL, MATCH_TIME_STEPS, DETECTION_STEPS,
+    LOCKON_BONUS, DIST_PENALTY_MAX, MISS_FLOOR_PER_SHOT,
+    AIM_PARAM_BASE, AIM_SCALE, HIT_RATE_MIN, HIT_RATE_MAX,
 )
 from game_types import (
     CELL_COLORS, CellType, ACTION_DELTA, Action, Role, Plant, Core, Map,
@@ -415,6 +417,29 @@ class Simulation:
             return 1
         return None
 
+    # ── 命中率計算（決定論的 DPS 分率モデル） ───────────────
+    def _calc_hit_fraction(self, shooter: Agent, target: Agent) -> float:
+        """
+        shooter から target への hit_fraction（0.0〜1.0）を計算する。
+
+        計算式:
+          - ロックオン範囲内: hit_frac = min(1.0, shooter.hit_rate * LOCKON_BONUS)
+          - 索敵〜ロックオン範囲: hit_frac = shooter.hit_rate * (1 - t * DIST_PENALTY_MAX)
+            （t: ロックオン境界=0、索敵境界=1 の線形補間）
+          - rate_floor = 1 - (1 - MISS_FLOOR_PER_SHOT) ** shooter.shots_per_step
+          - 最終: max(rate_floor, min(1.0, hit_frac))
+        """
+        dist = shooter.dist_cells(target)
+        if dist <= shooter.lockon_range_c:
+            hit_frac = min(1.0, shooter.hit_rate * LOCKON_BONUS)
+        else:
+            span = shooter.search_range_c - shooter.lockon_range_c
+            t = (dist - shooter.lockon_range_c) / span if span > 0 else 1.0
+            t = min(1.0, max(0.0, t))
+            hit_frac = shooter.hit_rate * (1.0 - t * DIST_PENALTY_MAX)
+        rate_floor = 1.0 - (1.0 - MISS_FLOOR_PER_SHOT) ** shooter.shots_per_step
+        return max(rate_floor, min(1.0, hit_frac))
+
     # ── 戦闘ダメージ解決 ──────────────────────────────────
     def _resolve_combat(self) -> list[str]:
         """
@@ -422,7 +447,7 @@ class Simulation:
 
         処理手順:
           1. 全生存エージェントのロックオン距離内の最近接敵を特定する。
-          2. HIT_RATE の確率で命中判定し、命中なら DPS をペンディングダメージに積算。
+          2. _calc_hit_fraction() で hit_fraction を計算し、damage = int(dps × hit_fraction) を積算。
           3. 全員分を計算し終えてから一括でHP を減算（同ステップ内は互いに相打ちあり）。
           4. HP が 0 以下になったエージェントを撃破状態にし、リスポーンタイマーをセット。
 
@@ -449,12 +474,14 @@ class Simulation:
 
             target = min(in_range, key=lambda e: agent.dist_cells(e))
 
-            # 命中判定（エージェント固有の dps を使用）
-            if random.random() < HIT_RATE:
+            # 決定論的ダメージ計算（hit_fraction × dps）
+            hit_frac = self._calc_hit_fraction(agent, target)
+            dmg = int(agent.dps * hit_frac)
+            if dmg > 0:
                 tid = target.agent_id
-                pending_damage[tid] = pending_damage.get(tid, 0) + agent.dps
-                shooters[tid] = agent.agent_id   # 最後に命中させたシューターを記録
-                hit_log.append((agent.agent_id, agent.team, tid, target.team, agent.dps))
+                pending_damage[tid] = pending_damage.get(tid, 0) + dmg
+                shooters[tid] = agent.agent_id   # 最後にダメージを与えたシューターを記録
+                hit_log.append((agent.agent_id, agent.team, tid, target.team, dmg))
 
         # フェーズ2: 一括ダメージ適用
         for agent in self.agents:
