@@ -86,6 +86,7 @@ class Agent:
                  role: Role = Role.ASSAULT,
                  *,
                  loadout: AgentLoadout | None = None,
+                 max_hp: int = AGENT_HP,
                  dps: int = DPS,
                  search_range_c: float = SEARCH_RANGE_C,
                  lockon_range_c: float = LOCKON_RANGE_C,
@@ -117,7 +118,7 @@ class Agent:
                 self.brain = brain
         else:
             # loadout なし：個別パラメータを直接使用（後方互換）
-            self.max_hp         = AGENT_HP
+            self.max_hp         = max_hp
             self.dps            = dps
             self.brain          = brain
             self.search_range_c = search_range_c

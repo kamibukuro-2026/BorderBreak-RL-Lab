@@ -107,11 +107,14 @@ def calc_full(
 
 # 1セルあたりのメートル数（simulation.py の CELL_SIZE_M と同値、循環 import 回避）
 _CELL_SIZE_M = 10
+# 装甲計算の基準 HP（rank_param["armor"] はダメージ係数: 実効HP = 基準HP / 係数）
+_AGENT_HP_BASE = 10_000
 
 
 def assemble_agent_params(
     calc_result: Dict[str, Any],
     *,
+    default_max_hp: int = _AGENT_HP_BASE,
     default_dps: int = 3000,
     default_search_range_c: float = 8.0,
     default_lockon_range_c: float = 6.0,
@@ -124,6 +127,8 @@ def assemble_agent_params(
     ----------
     calc_result : dict
         calc_full() の戻り値と同じ構造を持つ dict。
+    default_max_hp : int
+        base.armor_avg が存在しない場合のフォールバック値。
     default_dps : int
         weapons.main.damagePerSec が存在しない場合のフォールバック値。
     default_search_range_c : float
@@ -137,8 +142,13 @@ def assemble_agent_params(
     -------
     dict
         ``Agent(**params, agent_id=..., x=..., y=..., team=...)`` に展開できる kwargs dict。
-        キー: dps, search_range_c, lockon_range_c, cells_per_step
+        キー: max_hp, dps, search_range_c, lockon_range_c, cells_per_step
     """
+    # 実効 HP: armor_avg.param はダメージ係数（小さいほど硬い）
+    # 実効HP = 基準HP / ダメージ係数  （例: S=0.63 → 15,873、C+=1.0 → 10,000、E-=1.38 → 7,246）
+    armor_avg = calc_result.get("base", {}).get("armor_avg", {}).get("param")
+    max_hp = round(_AGENT_HP_BASE / armor_avg) if (armor_avg is not None and armor_avg > 0) else default_max_hp
+
     # DPS: main 武器の damagePerSec[0]
     weapons = calc_result.get("weapons", {})
     main_weapon = weapons.get("main", {})
@@ -157,6 +167,7 @@ def assemble_agent_params(
     cells_per_step = max(1, round(walk / _CELL_SIZE_M)) if walk is not None else default_cells_per_step
 
     return {
+        "max_hp": max_hp,
         "dps": dps,
         "search_range_c": search_range_c,
         "lockon_range_c": lockon_range_c,

@@ -10,7 +10,7 @@ assemble_agent_params() のテスト
 """
 import pytest
 from assemble import assemble_agent_params
-from simulation import Agent, DPS, SEARCH_RANGE_C, LOCKON_RANGE_C, CELLS_PER_STEP
+from simulation import Agent, AGENT_HP, DPS, SEARCH_RANGE_C, LOCKON_RANGE_C, CELLS_PER_STEP
 
 
 # ─────────────────────────────────────────
@@ -21,10 +21,12 @@ def make_calc_result(
     sakuteki_m: float = 80.0,
     lockon_m: float = 60.0,
     dps_per_sec: int = 3000,
+    armor_avg_param: float = 1.0,
 ) -> dict:
     """calc_full() 出力と同じ構造を持つ最小の dict を返す"""
     return {
         "base": {
+            "armor_avg": {"param": armor_avg_param},
             "walk": {"param": walk_mps},
         },
         "draw": {
@@ -37,6 +39,63 @@ def make_calc_result(
             "main": {"damagePerSec": [dps_per_sec]},
         },
     }
+
+
+# ─────────────────────────────────────────
+# max_hp の抽出テスト
+# ─────────────────────────────────────────
+class TestAssembleAgentParamsMaxHp:
+
+    def test_armor_coeff_1_0_yields_base_hp(self):
+        """armor_avg=1.0（C+ 相当）→ max_hp = 10,000"""
+        result = make_calc_result(armor_avg_param=1.0)
+        params = assemble_agent_params(result)
+        assert params["max_hp"] == 10_000
+
+    def test_armor_coeff_s_rank(self):
+        """armor_avg=0.63（S ランク）→ max_hp = round(10000/0.63) = 15,873"""
+        result = make_calc_result(armor_avg_param=0.63)
+        params = assemble_agent_params(result)
+        assert params["max_hp"] == round(10_000 / 0.63)
+
+    def test_armor_coeff_e_minus_rank(self):
+        """armor_avg=1.38（E- ランク）→ max_hp = round(10000/1.38) = 7,246"""
+        result = make_calc_result(armor_avg_param=1.38)
+        params = assemble_agent_params(result)
+        assert params["max_hp"] == round(10_000 / 1.38)
+
+    def test_softer_armor_gives_lower_hp(self):
+        """armor_avg が大きい（柔らかい）ほど max_hp が小さい"""
+        hard = assemble_agent_params(make_calc_result(armor_avg_param=0.63))
+        soft = assemble_agent_params(make_calc_result(armor_avg_param=1.25))
+        assert hard["max_hp"] > soft["max_hp"]
+
+    def test_max_hp_is_int(self):
+        """max_hp は整数型"""
+        result = make_calc_result(armor_avg_param=0.9)
+        params = assemble_agent_params(result)
+        assert isinstance(params["max_hp"], int)
+
+    def test_missing_armor_avg_uses_default(self):
+        """base.armor_avg がない → default_max_hp を使う"""
+        result = make_calc_result()
+        del result["base"]["armor_avg"]
+        params = assemble_agent_params(result, default_max_hp=8000)
+        assert params["max_hp"] == 8000
+
+    def test_missing_base_uses_default(self):
+        """base キー自体がない → default_max_hp を使う"""
+        result = make_calc_result()
+        del result["base"]
+        params = assemble_agent_params(result, default_max_hp=7777)
+        assert params["max_hp"] == 7777
+
+    def test_default_max_hp_matches_agent_hp(self):
+        """フォールバックはシミュレーター定数 AGENT_HP と一致"""
+        result = make_calc_result()
+        del result["base"]["armor_avg"]
+        params = assemble_agent_params(result)
+        assert params["max_hp"] == AGENT_HP
 
 
 # ─────────────────────────────────────────
@@ -237,9 +296,10 @@ class TestAssembleAgentParamsStructure:
         assert isinstance(params, dict)
 
     def test_has_required_keys(self):
-        """4つの必須キーが含まれる"""
+        """5つの必須キーが含まれる"""
         result = make_calc_result()
         params = assemble_agent_params(result)
+        assert "max_hp" in params
         assert "dps" in params
         assert "search_range_c" in params
         assert "lockon_range_c" in params
@@ -249,13 +309,14 @@ class TestAssembleAgentParamsStructure:
         """余分なキーが含まれない"""
         result = make_calc_result()
         params = assemble_agent_params(result)
-        assert set(params.keys()) == {"dps", "search_range_c", "lockon_range_c", "cells_per_step"}
+        assert set(params.keys()) == {"max_hp", "dps", "search_range_c", "lockon_range_c", "cells_per_step"}
 
     def test_params_can_be_spread_into_agent(self):
         """返り値を Agent(**params, ...) に展開できる"""
         result = make_calc_result()
         params = assemble_agent_params(result)
         agent = Agent(agent_id=1, x=5, y=25, team=0, **params)
+        assert agent.max_hp == params["max_hp"]
         assert agent.dps == params["dps"]
         assert agent.search_range_c == params["search_range_c"]
         assert agent.lockon_range_c == params["lockon_range_c"]
@@ -264,6 +325,7 @@ class TestAssembleAgentParamsStructure:
     def test_fully_missing_result_all_defaults(self):
         """空の dict → 全フィールドがデフォルト値"""
         params = assemble_agent_params({})
+        assert params["max_hp"] == AGENT_HP
         assert params["dps"] == DPS
         assert params["search_range_c"] == SEARCH_RANGE_C
         assert params["lockon_range_c"] == LOCKON_RANGE_C
@@ -273,11 +335,13 @@ class TestAssembleAgentParamsStructure:
         """カスタム default 値が欠損時に正しく使われる"""
         params = assemble_agent_params(
             {},
+            default_max_hp=9999,
             default_dps=1234,
             default_search_range_c=11.0,
             default_lockon_range_c=7.5,
             default_cells_per_step=4,
         )
+        assert params["max_hp"] == 9999
         assert params["dps"] == 1234
         assert params["search_range_c"] == pytest.approx(11.0)
         assert params["lockon_range_c"] == pytest.approx(7.5)
