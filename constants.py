@@ -46,3 +46,11 @@ AIM_PARAM_BASE = 12.0   # 標準BR相当の aim.param 値（B ランク）
 AIM_SCALE      = 0.006  # aim 1点あたりの hit_rate 変化量
 HIT_RATE_MIN   = 0.40   # hit_rate の下限
 HIT_RATE_MAX   = 1.00   # hit_rate の上限（クランプ）
+
+
+# ─────────────────────────────────────────
+# T-3: ブースト巡航定数（1ステップ = 1秒）
+# ─────────────────────────────────────────
+CRUISE_CONSUME_PER_STEP = 13.8   # 巡航中のブースト消費量/ステップ（= 毎秒13.8 from wiki）
+CRUISE_START_COST       = 12.0   # 巡航開始時の追加コスト（ダッシュ点火、sys_consts.STEP_BOOST=12 と対応）
+BOOST_REGEN_PER_STEP    = 15.0   # ブースト回復量/ステップ（固定定数、約6秒でC-ボディ全回復）

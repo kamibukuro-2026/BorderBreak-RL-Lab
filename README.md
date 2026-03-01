@@ -31,7 +31,7 @@ BASE B（チームB）
 - **同時解決戦闘** — 全エージェントの射撃を一括計算してから適用（相打ちあり）
 - **CSV ログ出力** — ステップ・イベントの2種類のログを自動保存、分析に利用可能
 - **パーツ・武器データ管理** — 実際のゲームデータを基にした機体パラメータ計算（セットボーナス・強化チップ・重量ペナルティ・武器派生パラメータ）
-- **519 件のユニットテスト** — TDD で開発、全件グリーン
+- **636 件のユニットテスト** — TDD で開発、全件グリーン
 
 ---
 
@@ -126,16 +126,22 @@ BorderBreakシミュレーター/
 │   ├── rank_param.json               # ランク→数値変換テーブル
 │   ├── sys_calc_constants.json       # システム定数
 │   ├── bland_data.json               # ブランドセットボーナス定義
-│   └── parts_param_config.json       # パーツパラメータの上下限設定
+│   ├── parts_param_config.json       # パーツパラメータの上下限設定
+│   └── parts_normalized.json         # パーツ正規化データ（496件）
 ├── tests/
 │   ├── test_core.py                  # Core クラスのテスト（25件）
 │   ├── test_plant.py                 # Plant クラスのテスト（42件）
 │   ├── test_agent.py                 # Agent クラスのテスト（53件）
+│   ├── test_agent_boost.py           # Agent ブーストパラメータのテスト（20件）
 │   ├── test_brain.py                 # GreedyBaseAttackBrain のテスト（28件）
 │   ├── test_plant_capture_brain.py   # PlantCaptureBrain のテスト（25件）
 │   ├── test_aggressive_combat_brain.py  # AggressiveCombatBrain のテスト（18件）
 │   ├── test_detection.py             # 被索敵状態のテスト（20件）
 │   ├── test_simulation.py            # Simulation 戦闘ロジックのテスト（59件）
+│   ├── test_simulation_boost.py      # Simulation ブースト巡航ロジックのテスト（23件）
+│   ├── test_agent_parts.py           # Agent per-agent パラメータのテスト（25件）
+│   ├── test_assemble.py              # assemble_agent_params のテスト（57件）
+│   ├── test_simulation_parts.py      # Simulation + per-agent パラメータ統合テスト（20件）
 │   ├── test_weapon_calc.py           # bb_weapon_calc のテスト（44件）
 │   ├── test_bb_base_and_brand.py     # bb_base_and_brand のテスト（41件）
 │   ├── test_bb_brbonus_calcparam_limit.py  # bb_brbonus_calcparam_limit のテスト（37件）
@@ -235,13 +241,14 @@ weapon = calc_full(catalog, LoadoutKeys("a","a","a","a"), weapons={"main": ref})
 
 武器データ・パーツデータの調査にもとづき、以下の順序で実装を進める予定です。
 
-### フェーズ1: パーツ由来パラメータの反映（優先度：高）
+### フェーズ1: パーツ由来パラメータの反映
 
-| タスク | 内容 |
-|---|---|
-| T-1 `max_hp` の可変化 | body の `armor` ランクを BR の最大 HP に反映（現在は 10,000 固定） |
-| T-2 `hit_rate` の可変化 | head の `aim` ランクを命中率に反映（現在は 80% 固定） |
-| T-3 移動速度基準の検討 | `walk` vs `dash` どちらを `cells_per_step` の基準にするか決定 |
+| タスク | 状態 | 内容 |
+|---|---|---|
+| T-1 `max_hp` の可変化 | ✅ 完了 | body の `armor` ランクを BR の最大 HP に反映 |
+| T-2 `hit_rate` の可変化 | ✅ 完了 | head の `aim` ランクを命中率に反映（決定論的 DPS 分率モデル） |
+| T-3 ブースト巡航システム | ✅ 完了 | walk/dash 2段階速度 + boost ゲージ管理の実装 |
+| T-3.5 セルサイズ変更 | 未着手 | `CELL_SIZE_M: 10m → 5m` — walk/dash の速度分解能を向上 |
 
 ### フェーズ2: 武器の射撃サイクル実装（優先度：中）
 
@@ -267,7 +274,7 @@ weapon = calc_full(catalog, LoadoutKeys("a","a","a","a"), weapons={"main": ref})
 
 | タスク | 内容 |
 |---|---|
-| T-9 スペシャル武器 | SP ゲージ管理（body: booster / spSupply）と spCharge / spReboot の実装 |
+| T-9 スペシャル武器 | SP ゲージ管理（body: spSupply）と spCharge / spReboot の実装 |
 | T-10 範囲ダメージ | グレネード・榴弾砲など `radius` を持つ武器の爆発範囲ダメージ |
 | T-11 積載量チェック | 重量超過ペナルティを `cells_per_step` に反映 |
 
@@ -275,4 +282,4 @@ weapon = calc_full(catalog, LoadoutKeys("a","a","a","a"), weapons={"main": ref})
 
 - [ ] スコア計算（占拠・撃破・回復ポイント）の実装
 - [ ] スコアパラメータを変えた複数回シミュレーションの比較・分析
-- [ ] `parts_normalized.json` の追加（パーツ一覧・ルックアップ機能の完全化）
+- [x] `parts_normalized.json` の追加（496 パーツ）

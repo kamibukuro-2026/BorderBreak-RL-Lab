@@ -299,7 +299,7 @@ class TestAssembleAgentParamsStructure:
         assert isinstance(params, dict)
 
     def test_has_required_keys(self):
-        """7つの必須キーが含まれる"""
+        """11の必須キーが含まれる"""
         result = make_calc_result()
         params = assemble_agent_params(result)
         assert "max_hp" in params
@@ -309,6 +309,10 @@ class TestAssembleAgentParamsStructure:
         assert "cells_per_step" in params
         assert "hit_rate" in params
         assert "shots_per_step" in params
+        assert "walk_cells_per_step" in params
+        assert "dash_cells_per_step" in params
+        assert "boost_max" in params
+        assert "boost_regen" in params
 
     def test_no_extra_keys(self):
         """余分なキーが含まれない"""
@@ -317,6 +321,8 @@ class TestAssembleAgentParamsStructure:
         assert set(params.keys()) == {
             "max_hp", "dps", "search_range_c", "lockon_range_c",
             "cells_per_step", "hit_rate", "shots_per_step",
+            "walk_cells_per_step", "dash_cells_per_step",
+            "boost_max", "boost_regen",
         }
 
     def test_params_can_be_spread_into_agent(self):
@@ -331,6 +337,10 @@ class TestAssembleAgentParamsStructure:
         assert agent.cells_per_step == params["cells_per_step"]
         assert agent.hit_rate == pytest.approx(params["hit_rate"])
         assert agent.shots_per_step == params["shots_per_step"]
+        assert agent.walk_cells_per_step == params["walk_cells_per_step"]
+        assert agent.dash_cells_per_step == params["dash_cells_per_step"]
+        assert agent.boost_max == params["boost_max"]
+        assert agent.boost_regen == pytest.approx(params["boost_regen"])
 
     def test_fully_missing_result_all_defaults(self):
         """空の dict → 全フィールドがデフォルト値"""
@@ -482,3 +492,142 @@ class TestAssembleAgentParamsShotsPerStep:
         result = make_calc_result(rate=60.0)
         params = assemble_agent_params(result)
         assert isinstance(params["shots_per_step"], int)
+
+
+# ─────────────────────────────────────────
+# walk_cells_per_step / dash_cells_per_step の抽出テスト
+# ─────────────────────────────────────────
+def make_calc_result_with_dash(
+    walk_mps: float = 21.9,
+    dash_mps: float | None = None,
+    booster_param: float | None = None,
+    **kwargs,
+) -> dict:
+    """dash / body.booster フィールドを追加した calc_result を返す"""
+    base = make_calc_result(walk_mps=walk_mps, **kwargs)
+    if dash_mps is not None:
+        base["base"]["dash"] = {"param": dash_mps}
+    if booster_param is not None:
+        base.setdefault("draw", {}).setdefault("body", {})
+        base["draw"]["body"]["booster"] = {"param": booster_param}
+    return base
+
+
+class TestAssembleWalkDashCells:
+
+    def test_walk_cells_from_walk_speed(self):
+        """walk=6.75m/s → round(6.75/10)=1 → walk_cells_per_step=1"""
+        result = make_calc_result_with_dash(walk_mps=6.75, dash_mps=21.9)
+        params = assemble_agent_params(result)
+        assert params["walk_cells_per_step"] == 1
+
+    def test_walk_cells_very_slow_minimum_is_1(self):
+        """walk=3.0m/s → round(0.3)=0 → max(1,0)=1"""
+        result = make_calc_result_with_dash(walk_mps=3.0, dash_mps=21.9)
+        params = assemble_agent_params(result)
+        assert params["walk_cells_per_step"] == 1
+
+    def test_dash_cells_c_minus_rank(self):
+        """dash=21.9m/s → round(2.19)=2 → dash_cells_per_step=2（C- ランク相当）"""
+        result = make_calc_result_with_dash(walk_mps=6.75, dash_mps=21.9)
+        params = assemble_agent_params(result)
+        assert params["dash_cells_per_step"] == 2
+
+    def test_dash_cells_s_rank(self):
+        """dash=28.5m/s → round(2.85)=3 → dash_cells_per_step=3（S ランク相当）"""
+        result = make_calc_result_with_dash(walk_mps=10.125, dash_mps=28.5)
+        params = assemble_agent_params(result)
+        assert params["dash_cells_per_step"] == 3
+
+    def test_missing_dash_falls_back_to_cells_per_step(self):
+        """base.dash がない → cells_per_step の値を使う"""
+        result = make_calc_result(walk_mps=21.9)  # dash なし
+        params = assemble_agent_params(result)
+        # cells_per_step = round(21.9/10) = 2
+        assert params["dash_cells_per_step"] == params["cells_per_step"]
+
+    def test_missing_walk_uses_default_walk_cells(self):
+        """base.walk がない → default_walk_cells_per_step を使う"""
+        result = make_calc_result_with_dash(walk_mps=6.75, dash_mps=21.9)
+        del result["base"]["walk"]
+        params = assemble_agent_params(result, default_walk_cells_per_step=2)
+        assert params["walk_cells_per_step"] == 2
+
+    def test_walk_cells_is_int(self):
+        """walk_cells_per_step は整数型"""
+        result = make_calc_result_with_dash(walk_mps=6.75, dash_mps=21.9)
+        params = assemble_agent_params(result)
+        assert isinstance(params["walk_cells_per_step"], int)
+
+    def test_dash_cells_is_int(self):
+        """dash_cells_per_step は整数型"""
+        result = make_calc_result_with_dash(walk_mps=6.75, dash_mps=21.9)
+        params = assemble_agent_params(result)
+        assert isinstance(params["dash_cells_per_step"], int)
+
+
+# ─────────────────────────────────────────
+# boost_max の抽出テスト
+# ─────────────────────────────────────────
+class TestAssembleBoostMax:
+
+    def test_boost_max_from_booster_param(self):
+        """draw.body.booster.param=90.0 → boost_max=90"""
+        result = make_calc_result_with_dash(booster_param=90.0)
+        params = assemble_agent_params(result)
+        assert params["boost_max"] == 90
+
+    def test_boost_max_s_rank(self):
+        """draw.body.booster.param=140.0 → boost_max=140（S ランク相当）"""
+        result = make_calc_result_with_dash(booster_param=140.0)
+        params = assemble_agent_params(result)
+        assert params["boost_max"] == 140
+
+    def test_boost_max_e_minus_rank(self):
+        """draw.body.booster.param=55.0 → boost_max=55（E- ランク相当）"""
+        result = make_calc_result_with_dash(booster_param=55.0)
+        params = assemble_agent_params(result)
+        assert params["boost_max"] == 55
+
+    def test_missing_booster_uses_default(self):
+        """draw.body.booster がない → default_boost_max を使う"""
+        result = make_calc_result()
+        params = assemble_agent_params(result, default_boost_max=80)
+        assert params["boost_max"] == 80
+
+    def test_missing_booster_default_is_zero(self):
+        """booster なし・default 未指定 → boost_max=0（後方互換）"""
+        result = make_calc_result()
+        params = assemble_agent_params(result)
+        assert params["boost_max"] == 0
+
+    def test_boost_max_is_int(self):
+        """boost_max は整数型"""
+        result = make_calc_result_with_dash(booster_param=90.0)
+        params = assemble_agent_params(result)
+        assert isinstance(params["boost_max"], int)
+
+
+# ─────────────────────────────────────────
+# boost_regen の計算テスト
+# ─────────────────────────────────────────
+class TestAssembleBoostRegen:
+
+    def test_boost_regen_nonzero_when_boost_max_positive(self):
+        """boost_max > 0 → boost_regen = BOOST_REGEN_PER_STEP（15.0）"""
+        result = make_calc_result_with_dash(booster_param=90.0)
+        params = assemble_agent_params(result)
+        from constants import BOOST_REGEN_PER_STEP
+        assert params["boost_regen"] == pytest.approx(BOOST_REGEN_PER_STEP)
+
+    def test_boost_regen_zero_when_boost_max_zero(self):
+        """boost_max=0 → boost_regen=0.0（後方互換）"""
+        result = make_calc_result()
+        params = assemble_agent_params(result)
+        assert params["boost_regen"] == pytest.approx(0.0)
+
+    def test_boost_regen_is_float(self):
+        """boost_regen は float 型"""
+        result = make_calc_result_with_dash(booster_param=90.0)
+        params = assemble_agent_params(result)
+        assert isinstance(params["boost_regen"], float)
