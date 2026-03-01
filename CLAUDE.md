@@ -39,7 +39,12 @@
 
 ```
 BorderBreakシミュレーター/
-├── simulation.py              # メイン実装（シミュレーターの全ロジック）
+├── simulation.py              # Simulation クラス + re-import ハブ（テスト後方互換維持）
+├── constants.py               # 全ゲーム定数（CELL_SIZE_M, MAP_W, DPS, CORE_HP など）
+├── game_types.py              # Enum・Plant・Core・Map クラス（CellType / Action / Role など）
+├── brain.py                   # Brain 階層クラス群（Brain / GreedyBaseAttackBrain / PlantCaptureBrain / AggressiveCombatBrain）
+├── agent.py                   # Agent クラス + ロール画像アセット読み込み
+├── map_gen.py                 # create_map() / get_base_spawn_points()
 ├── catalog.py                 # パーツ・武器データの読込とインデックス化
 ├── assemble.py                # 機体アセンブル計算の高レベル API
 ├── bb_base_and_brand.py       # ベースパラメータ集計・セットボーナス計算
@@ -65,6 +70,9 @@ BorderBreakシミュレーター/
 │   ├── test_aggressive_combat_brain.py     # AggressiveCombatBrain のテスト（18件）
 │   ├── test_detection.py                   # 被索敵状態のテスト（20件）
 │   ├── test_simulation.py                  # Simulation 戦闘ロジックのテスト（59件）
+│   ├── test_agent_parts.py                 # Agent per-agent パラメータのテスト（25件）
+│   ├── test_assemble.py                    # assemble_agent_params のテスト（30件）
+│   ├── test_simulation_parts.py            # Simulation + per-agent パラメータ統合テスト（20件）
 │   ├── test_weapon_calc.py                 # bb_weapon_calc のテスト（44件）
 │   ├── test_bb_base_and_brand.py           # bb_base_and_brand のテスト（41件）
 │   ├── test_bb_brbonus_calcparam_limit.py  # bb_brbonus_calcparam_limit のテスト（37件）
@@ -76,13 +84,30 @@ BorderBreakシミュレーター/
         └── events_YYYYMMDD_HHMMSS.csv
 ```
 
-**テスト合計: 444 件（全件グリーン）**
+**テスト合計: 519 件（全件グリーン）**
+
+### シミュレーターモジュールの依存関係
+
+```
+constants.py        （依存なし）
+    ↓
+game_types.py       → constants
+    ↓
+brain.py            → game_types（Agent は TYPE_CHECKING のみ）
+    ↓
+agent.py            → constants, game_types（Brain は TYPE_CHECKING のみ）
+
+map_gen.py          → constants, game_types
+
+simulation.py       → constants, game_types, brain, agent, map_gen
+                      （テスト後方互換のため全シンボルを re-import）
+```
 
 ---
 
-## クラス・型の設計（simulation.py）
+## クラス・型の設計
 
-### 定数
+### 定数（constants.py）
 
 ```python
 CELL_SIZE_M    = 10       # 1マス = 10m
@@ -111,7 +136,7 @@ CORE_HP           = 266_666
 CORE_DMG_PER_KILL = CORE_HP / 160   # ≈ 1,666.67（撃破リスポーン時ペナルティ）
 ```
 
-### `CellType`（IntEnum）
+### `CellType`（IntEnum）— game_types.py
 
 | 値 | 意味 |
 |---|---|
@@ -121,7 +146,7 @@ CORE_DMG_PER_KILL = CORE_HP / 160   # ≈ 1,666.67（撃破リスポーン時ペ
 | `BASE_A` | チームA ベース（上端 y=0〜2） |
 | `BASE_B` | チームB ベース（下端 y=47〜49） |
 
-### `Plant`（dataclass）
+### `Plant`（dataclass）— game_types.py
 
 - `plant_id`, `x`, `y`, `radius_cells`
 - `owner`（-1=中立 / 0=チームA / 1=チームB）
@@ -142,26 +167,26 @@ CORE_DMG_PER_KILL = CORE_HP / 160   # ≈ 1,666.67（撃破リスポーン時ペ
 
 radius=3 の場合、spawn_y は plant.y ∓ 4（チームA/B）。
 
-### `Core`（dataclass）
+### `Core`（dataclass）— game_types.py
 
 - `team`, `hp`, `max_hp`
 - `destroyed` プロパティ → `hp <= 0`
 - `hp_pct` プロパティ → HP%
 - `apply_damage(dmg)` → `max(0, hp - dmg)` にクランプ
 
-### `Map`
+### `Map` — game_types.py
 
 - `numpy` の 2D 配列でグリッドを管理
 - `is_walkable(x, y)` → 境界内かつ `OBSTACLE` でなければ True
 
-### `Action`（Enum）+ `ACTION_DELTA`
+### `Action`（Enum）+ `ACTION_DELTA` — game_types.py
 
 ```python
 Action.STAY / MOVE_UP / MOVE_DOWN / MOVE_LEFT / MOVE_RIGHT
 ACTION_DELTA: dict[Action, tuple[int, int]]  # (dx, dy)
 ```
 
-### `Role`（Enum）
+### `Role`（Enum）— game_types.py
 
 | 値 | ロール名 | 説明 |
 |---|---|---|
@@ -173,7 +198,7 @@ ACTION_DELTA: dict[Action, tuple[int, int]]  # (dx, dy)
 > ロールごとの固有パラメータ（HP・移動速度・射程・DPSなど）および
 > ロール専用 Brain の実装は今後のフェーズで行う。
 
-### `Brain` / `GreedyBaseAttackBrain`
+### `Brain` / `GreedyBaseAttackBrain` — brain.py
 
 - `Brain`：`decide(agent, map, plants, agents) -> Action` を持つ基底クラス
 - `GreedyBaseAttackBrain(target)` — 3状態の貪欲戦略
@@ -196,7 +221,7 @@ ACTION_DELTA: dict[Action, tuple[int, int]]  # (dx, dy)
      - 複数いる場合は最近接を選択
   4. **PATROL**（追跡対象なし）: 敵ベースへ貪欲移動
 
-### `Agent`（ブラスト・ランナー）
+### `Agent`（ブラスト・ランナー）— agent.py
 
 - `agent_id`, `x`, `y`, `team`, `hp`, `max_hp`, `alive`, `respawn_timer`, `brain`
 - `role`（Role, デフォルト `Role.ASSAULT`）: ロール（現フェーズは全員 ASSAULT に固定）
@@ -209,7 +234,7 @@ ACTION_DELTA: dict[Action, tuple[int, int]]  # (dx, dy)
 - `pos` プロパティ → `(x, y)`
 - `pos_m` プロパティ → メートル座標 `(x*10, y*10)`
 
-### `Simulation`
+### `Simulation` — simulation.py
 
 | メソッド | 説明 |
 |---|---|
@@ -235,7 +260,7 @@ ACTION_DELTA: dict[Action, tuple[int, int]]  # (dx, dy)
 → スナップショット記録 → 勝敗判定（コア破壊） → 制限時間判定 → 描画
 ```
 
-### モジュールレベル関数
+### モジュールレベル関数 — map_gen.py
 
 #### `create_map() -> tuple[Map, list[Plant]]`
 
@@ -373,14 +398,129 @@ capture_gauge = clamp(capture_gauge + net, -10, +10)
 - [x] ユニットテスト 270 件（test_core / test_plant / test_agent / test_brain / test_plant_capture_brain / test_aggressive_combat_brain / test_detection / test_simulation）
 - [x] パーツ・武器データ管理モジュール群（catalog / assemble / bb_\* モジュール）の追加
 - [x] パーツ・武器計算モジュール群のユニットテスト 174 件（test_weapon_calc / test_bb_base_and_brand / test_bb_brbonus_calcparam_limit / test_bb_calc_movement / test_catalog）
+- [x] Agent の per-agent パラメータ（dps / search_range_c / lockon_range_c / cells_per_step）と assemble_agent_params() の実装
+- [x] per-agent パラメータのユニットテスト 75 件（test_agent_parts / test_assemble / test_simulation_parts）
+- [x] simulation.py を論理単位ごとに5ファイルへ分割（constants / game_types / brain / agent / map_gen）
+- [x] AgentLoadout / RoleLoadout データクラスの定義と Agent.loadout パラメータの追加
 
-## 未実装・次ステップ候補
+## 今後の実装タスク
 
-- [ ] ロールごとの固有パラメータ実装（HP・移動速度・射程・DPS など）
-- [ ] ロール専用 Brain の実装（Support による回復、Sniper による遠距離攻撃など）
-- [ ] 行動戦略の多様化（役割分担：AggressiveCombatBrain と PlantCaptureBrain の混成チームなど）
-- [ ] スコア計算（占拠・撃破・回復ポイント）
-- [ ] スコアパラメータを変えた複数回シミュレーション比較・分析
+武器データ・パーツデータの調査結果をもとに、実装すべき項目を優先度順にまとめる。
+
+### フェーズ1: パーツ由来パラメータの反映（優先度：高）
+
+#### T-1. `max_hp` の可変化（body: armor）
+- **現状**: `AGENT_HP = 10,000` 固定
+- **目標**: body パーツの `armor` ランクを HP に反映する
+- `rank_param["armor"]` はHP倍率（S=0.63〜E-=1.38）。基準 HP × armor.param で算出
+- `assemble_agent_params()` の出力に `max_hp` を追加
+- `AgentLoadout.max_hp` に設定（loadout 対応は実装済み）
+
+#### T-2. `hit_rate` の可変化（head: aim）
+- **現状**: `HIT_RATE = 0.80` 固定
+- **目標**: head パーツの `aim` ランクを命中率に反映する
+- `rank_param["aim"]` の数値の意味（誤差px？確率%？）を確認して変換式を決める
+- `AgentLoadout` に `hit_rate: float` フィールドを追加
+- `Agent` に `hit_rate` 属性を追加
+- `Simulation._resolve_combat()` で `agent.hit_rate` を参照するよう変更
+
+#### T-3. 移動速度の基準をダッシュ速度に変更するか検討（leg: dash）
+- **現状**: `walk.param / 10` で cells_per_step を計算（歩行速度ベース）
+- **検討**: 実ゲームの平地移動の大半はダッシュ（ブースター消費）であり、`dash.param / 10` が実態に近い可能性
+- ブースター管理（T-9）を実装しない場合は walk のままで問題なし
+- **要決定**: walk と dash のどちらを基準にするか
+
+### フェーズ2: 武器の射撃サイクル実装（優先度：中）
+
+#### T-4. リロードタイマーの実装
+- **現状**: 毎ステップ DPS を無条件に適用（無限射撃）
+- **目標**: 弾倉（clip）→ 射撃 → リロード（reload 秒）のサイクルを再現
+- `Agent` に `ammo_in_clip: int`・`reload_timer: int` 属性を追加
+- `AgentLoadout` / `RoleLoadout` に `clip: int`・`reload_steps: int` を追加（`reload_steps = round(reload)` で1秒=1ステップ）
+- `Simulation._resolve_combat()` の変更: reload_timer > 0 → 射撃不可・タイマー減算のみ
+- `_process_respawns()` でリスポーン時に弾倉をフル補充
+
+#### T-5. arm: reloadRate の反映
+- **前提**: T-4 実装後
+- `rank_param["reloadRate"]` で arm の reloadRate ランク → 倍率変換
+- `reload_steps = round(weapon.reload × reloadRate.param)` のように計算
+- `assemble_agent_params()` または AgentLoadout 構築時に適用
+
+#### T-6. precision → hit_rate の武器側反映
+- **前提**: T-2 実装後
+- 武器の `precision` ランクも命中率に影響させる
+- head の aim（パーツ）と武器の precision を組み合わせて最終 hit_rate を算出
+
+### フェーズ3: 弾切れと補給（優先度：中〜低）
+
+#### T-7. ammo（総弾倉数）の実装
+- **前提**: T-4 実装後
+- **現状**: 弾切れなし
+- **目標**: ammo 個の弾倉を使い切ったら射撃不能になる
+- `Agent` に `mag_count: int` 属性を追加
+- リロード完了時に mag_count -= 1、0 になったら「弾切れ」状態
+- 弾切れ時の Brain の行動を決定（Brain に弾切れ状態を渡す必要あり）
+- リスポーン時に mag_count をフルに補充
+
+### フェーズ4: ロール選択戦略の実装（優先度：中）
+
+#### T-8. リスポーン時のロール選択
+- **現状**: AgentLoadout.roles は定義済みだがリスポーン時にロールが変わらない
+- **目標**: リスポーン時に AgentLoadout.roles から次ロールを選んで適用する
+- ロール選択戦略インターフェースを決定（例: `RoleSelector` 基底クラス）
+  - `FixedRoleSelector(role)`: 常に同じロール（現状維持）
+  - `RandomRoleSelector(weights)`: ロールごとの出現率で選択
+  - `StateBasedRoleSelector(...)`: 戦況によって選択（将来）
+- `_process_respawns()` でリスポーン時にロール選択 → `agent.role`, `agent.dps`, `agent.brain`, `agent.hit_rate` を更新
+- `AgentLoadout` にロール選択戦略（`role_selector`）フィールドを追加
+
+### フェーズ5: 高度なパラメータ（優先度：低）
+
+#### T-9. スペシャル武器（SP ゲージ）の実装
+- body: `booster`（SP最大容量）・`spSupply`（SP回復速度）と武器の `spCharge`/`spReboot` の管理
+- スペシャル武器専用の Brain 状態（`USE_SPECIAL`）が必要
+
+#### T-10. 爆発・範囲ダメージの実装
+- `radius` フィールドを持つ武器（グレネード、榴弾砲等）の範囲内全エージェントへのダメージ計算
+
+#### T-11. 積載量チェック（leg: loadCapacity）
+- 現在は重量超過ペナルティを計算していない
+- cells_per_step のペナルティとして表現可能
+
+### タスク依存関係
+
+```
+T-1（armor→max_hp）       独立
+T-2（aim→hit_rate）       独立
+T-3（dash speed 検討）    独立（T-9と連動検討）
+T-4（リロード）            独立 ← T-5, T-7 の前提
+T-5（reloadRate反映）     T-4 の後
+T-6（precision→hit_rate） T-2 の後
+T-7（ammo弾切れ）         T-4 の後
+T-8（ロール選択）          独立（T-2, T-4 実装後に効果大）
+T-9（スペシャル）          T-3, T-8 の後
+T-10（範囲ダメージ）       独立
+T-11（積載量）             独立
+```
+
+### 推奨実装順
+
+| 順序 | タスク | 理由 |
+|---|---|---|
+| 1 | T-1 armor → max_hp | 装甲差がロール間の基本差として最重要 |
+| 2 | T-2 aim → hit_rate | 命中率固定がシミュレーション精度に影響大 |
+| 3 | T-8 ロール選択戦略 | T-1/T-2 実装後に複数ロール混成が意味を持つ |
+| 4 | T-4 リロードタイマー | 武器スペックの差を最もよく反映できる |
+| 5 | T-5 reloadRate反映 | T-4 があれば追加コスト小 |
+| 6 | T-7 ammo弾切れ | T-4 があれば追加コスト小 |
+| 7 | T-3, T-6, T-10, T-11 | 状況に応じて |
+| 後 | T-9 スペシャル | 実装コスト高、優先度は最終段階 |
+
+### 上位目標
+
+- [ ] スコア計算（占拠・撃破・回復ポイント）の実装
+- [ ] スコアパラメータを変えた複数回シミュレーションの比較・分析
+- [ ] `parts_normalized.json` の追加（パーツ一覧・ルックアップ機能の完全化）
 
 ---
 
@@ -419,6 +559,8 @@ bb_brbonus_calcparam_limit.py  (依存なし)
 bb_weapon_calc.py              (依存なし)
 catalog.py                     (依存なし)
 assemble.py  → catalog / bb_base_and_brand / bb_brbonus_calcparam_limit / bb_weapon_calc
+               ※ simulation.py → assemble.py の循環 import は禁止
+               ※ _CELL_SIZE_M = 10 を assemble.py ローカル定数として定義（constants.py を import しない）
 bb_full_calc.py → bb_base_and_brand / bb_brbonus_calcparam_limit / bb_weapon_calc
                   （※ constdata.js が必要。ファイルが存在しない場合は calc_full_assemble 呼び出し時にエラー）
 ```

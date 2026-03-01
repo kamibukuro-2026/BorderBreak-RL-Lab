@@ -9,453 +9,25 @@ import os
 import random
 from datetime import datetime
 
-import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-from dataclasses import dataclass
-from typing import ClassVar
-from enum import IntEnum, Enum, auto
 
-
-# ─────────────────────────────────────────
-# マップ定数
-# ─────────────────────────────────────────
-CELL_SIZE_M    = 10    # 1マスのサイズ（メートル）
-MAP_WIDTH_M    = 100   # マップ横幅（メートル）
-MAP_HEIGHT_M   = 500   # マップ縦幅（メートル）
-MAP_W          = MAP_WIDTH_M  // CELL_SIZE_M   # 10 セル
-MAP_H          = MAP_HEIGHT_M // CELL_SIZE_M   # 50 セル
-BASE_DEPTH     = 3     # ベースの奥行き（セル）
-NUM_PLANTS     = 3     # プラント数
-PLANT_RADIUS_M = 30    # プラント占拠範囲（メートル）
-PLANT_RADIUS_C = PLANT_RADIUS_M / CELL_SIZE_M  # 3.0 セル
-
-
-# ─────────────────────────────────────────
-# 戦闘定数（1ステップ = 1秒、移動速度 ≈ 10m/s）
-# ─────────────────────────────────────────
-AGENT_HP       = 10_000  # ブラスト・ランナーの最大HP
-DPS            = 3_000   # 毎ステップのダメージ量（射撃成功時）
-HIT_RATE       = 0.80    # 命中確率
-SEARCH_RANGE_M = 80      # 索敵範囲（メートル）
-SEARCH_RANGE_C = SEARCH_RANGE_M / CELL_SIZE_M   # 8.0 セル
-LOCKON_RANGE_M = 60      # ロックオン距離（メートル）
-LOCKON_RANGE_C = LOCKON_RANGE_M / CELL_SIZE_M   # 6.0 セル
-RESPAWN_STEPS  = 10      # 撃破からリスポーンまでのステップ数
-MOVE_SPEED_MPS    = 21.9    # 標準BR移動速度（m/s、公式設定値）
-CELLS_PER_STEP    = max(1, round(MOVE_SPEED_MPS / CELL_SIZE_M))  # 2 cells/step ≈ 20m/s
-CORE_HP           = 266_666          # コアの初期HP（160機撃破でゼロになる値）
-CORE_DMG_PER_KILL = CORE_HP / 160    # BR1機撃破→リスポーン時に自チームコアへ入るダメージ（≈1,666.67）
-MATCH_TIME_STEPS  = 600              # 試合制限時間（10分 × 60秒/ステップ）
-DETECTION_STEPS   = 3               # 被索敵状態になるまでの連続索敵ステップ数
-
-
-# ─────────────────────────────────────────
-# セルの種類
-# ─────────────────────────────────────────
-class CellType(IntEnum):
-    EMPTY    = 0
-    OBSTACLE = 1
-    PLANT    = 2   # プラント中心セル
-    BASE_A   = 3   # チームA ベース（マップ上端）
-    BASE_B   = 4   # チームB ベース（マップ下端）
-
-
-CELL_COLORS = {
-    CellType.EMPTY:    "#e8e8e8",
-    CellType.OBSTACLE: "#2b2b2b",
-    CellType.PLANT:    "#ffe066",
-    CellType.BASE_A:   "#6baed6",
-    CellType.BASE_B:   "#fc8d59",
-}
-
-
-# ─────────────────────────────────────────
-# プラントクラス
-# ─────────────────────────────────────────
-@dataclass
-class Plant:
-    OWNER_COLORS: ClassVar[dict] = {
-        -1: ("#888888", "中立"),
-         0: ("#1a6fb5", "チームA"),
-         1: ("#c0392b", "チームB"),
-    }
-    CAPTURE_DURABILITY: ClassVar[int] = 10  # 占拠完了に必要なゲージ量
-    MAX_CAPTURERS     : ClassVar[int] = 3   # 占拠力に上限を与えるBR数
-
-    plant_id     : int
-    x            : int
-    y            : int
-    radius_cells : float = PLANT_RADIUS_C
-    owner        : int   = -1
-    capture_gauge: float = 0.0
-
-    def get_spawn_points(self, team: int) -> list[tuple[int, int]]:
-        """
-        team が使用できる再出撃地点を左右2か所返す。
-
-        プラント占拠円から1グリッド外側（自軍ベース方向）に配置し、
-        中心 x を挟んで左右対称（x-1, x+1）。
-
-        Team A (team=0): y = self.y - (int(radius_cells) + 1)  ← ベース上側
-        Team B (team=1): y = self.y + (int(radius_cells) + 1)  ← ベース下側
-        """
-        dy = -(int(self.radius_cells) + 1) if team == 0 else (int(self.radius_cells) + 1)
-        sy = self.y + dy
-        return [(self.x - 1, sy), (self.x + 1, sy)]
-
-    def is_in_range(self, x: int, y: int) -> bool:
-        return ((x - self.x) ** 2 + (y - self.y) ** 2) ** 0.5 <= self.radius_cells
-
-    @property
-    def pos_m(self) -> tuple[int, int]:
-        return (self.x * CELL_SIZE_M, self.y * CELL_SIZE_M)
-
-    def __repr__(self) -> str:
-        owner_name = self.OWNER_COLORS[self.owner][1]
-        g = self.capture_gauge
-        return (f"Plant(id={self.plant_id}, "
-                f"pos=({self.pos_m[0]}m, {self.pos_m[1]}m), "
-                f"owner={owner_name}, gauge={g:+.0f}/{self.CAPTURE_DURABILITY})")
-
-
-# ─────────────────────────────────────────
-# コアクラス
-# ─────────────────────────────────────────
-@dataclass
-class Core:
-    """
-    各チームのベースに設置されたコア。
-    HP がゼロになるとそのチームの敗北。
-
-    ダメージ発生源:
-      - 敵 BR がベース内に滞在 → 毎ステップ DPS
-      - 自チーム BR が撃破されリスポーン → CORE_DMG_PER_KILL
-    """
-    team  : int
-    hp    : float = float(CORE_HP)
-    max_hp: float = float(CORE_HP)
-
-    @property
-    def destroyed(self) -> bool:
-        return self.hp <= 0
-
-    @property
-    def hp_pct(self) -> float:
-        return self.hp / self.max_hp * 100
-
-    def apply_damage(self, dmg: float):
-        self.hp = max(0.0, self.hp - dmg)
-
-
-# ─────────────────────────────────────────
-# マップクラス
-# ─────────────────────────────────────────
-class Map:
-    def __init__(self, width: int, height: int):
-        self.width  = width
-        self.height = height
-        self.grid   = np.zeros((height, width), dtype=int)
-
-    def set_cell(self, x: int, y: int, cell_type: CellType):
-        self.grid[y][x] = int(cell_type)
-
-    def get_cell(self, x: int, y: int) -> CellType:
-        return CellType(self.grid[y][x])
-
-    def in_bounds(self, x: int, y: int) -> bool:
-        return 0 <= x < self.width and 0 <= y < self.height
-
-    def is_walkable(self, x: int, y: int) -> bool:
-        return self.in_bounds(x, y) and self.get_cell(x, y) != CellType.OBSTACLE
-
-
-# ─────────────────────────────────────────
-# 行動定義
-# ─────────────────────────────────────────
-class Action(Enum):
-    STAY       = auto()
-    MOVE_UP    = auto()
-    MOVE_DOWN  = auto()
-    MOVE_LEFT  = auto()
-    MOVE_RIGHT = auto()
-
-
-# アクション → (dx, dy) の対応表
-ACTION_DELTA: dict[Action, tuple[int, int]] = {
-    Action.STAY:       ( 0,  0),
-    Action.MOVE_UP:    ( 0, -1),
-    Action.MOVE_DOWN:  ( 0,  1),
-    Action.MOVE_LEFT:  (-1,  0),
-    Action.MOVE_RIGHT: ( 1,  0),
-}
-
-
-# ─────────────────────────────────────────
-# ロール定義
-# ─────────────────────────────────────────
-class Role(Enum):
-    """BR（ブラスト・ランナー）のロール。"""
-    ASSAULT       = auto()   # 突撃型（現フェーズではデフォルト）
-    HEAVY_ASSAULT = auto()   # 重撃型
-    SUPPORT       = auto()   # 支援型
-    SNIPER        = auto()   # 狙撃型
-
-
-# ─────────────────────────────────────────
-# ロール別画像アセット
-# ─────────────────────────────────────────
-_ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets')
-_ROLE_IMAGE_FILES: dict[Role, str] = {
-    Role.ASSAULT:       'assult.png',
-    Role.HEAVY_ASSAULT: 'heavy_assult.png',
-    Role.SUPPORT:       'support.png',
-    Role.SNIPER:        'sniper.png',
-}
-_role_image_cache: dict = {}
-
-
-def _get_role_image(role: Role):
-    """ロールに対応する画像配列を返す。読み込み失敗時は None。"""
-    if role not in _role_image_cache:
-        fname = _ROLE_IMAGE_FILES.get(role)
-        try:
-            _role_image_cache[role] = plt.imread(
-                os.path.join(_ASSETS_DIR, fname)
-            )
-        except Exception:
-            _role_image_cache[role] = None
-    return _role_image_cache[role]
-
-
-# ─────────────────────────────────────────
-# 行動戦略（Brain）
-# ─────────────────────────────────────────
-class Brain:
-    """行動決定ロジックの基底クラス。サブクラスで decide() をオーバーライドする。"""
-
-    def decide(self, agent: Agent, game_map: Map,
-               plants: list[Plant], agents: list[Agent]) -> Action:
-        del agent, game_map, plants, agents  # サブクラスでオーバーライド想定。基底実装は何もしない。
-        return Action.STAY
-
-
-class GreedyBaseAttackBrain(Brain):
-    """
-    敵ベースへ向かいながら、敵を検知したら戦闘を行う貪欲戦略。
-
-    行動状態（優先順）:
-      1. ATTACK  : ロックオン距離（LOCKON_RANGE_C）内に敵がいる
-                   → STAY（足を止めて射撃。ダメージ適用は Simulation が担当）
-      2. APPROACH: 索敵範囲（SEARCH_RANGE_C）内に敵がいる
-                   → 最も近い敵へ貪欲移動
-      3. PATROL  : 敵が視界外
-                   → 目標（敵ベース）へ貪欲移動
-    """
-
-    def __init__(self, target: tuple[int, int]):
-        """
-        Parameters
-        ----------
-        target : (x, y) セル座標  ← 敵ベース中心など
-        """
-        self.target = target
-
-    def decide(self, agent: Agent, game_map: Map,
-               plants: list[Plant], agents: list[Agent]) -> Action:
-        del plants  # 現バージョンでは未使用
-
-        # 生存している敵エージェントを列挙
-        enemies = [a for a in agents if a.alive and a.team != agent.team]
-        visible = [e for e in enemies if agent.in_search_range(e)]
-
-        if visible:
-            nearest = min(visible, key=lambda e: agent.dist_cells(e))
-
-            # 状態1 ATTACK: ロックオン距離内 → 足を止めて射撃
-            if agent.in_lockon_range(nearest):
-                return Action.STAY
-
-            # 状態2 APPROACH: 索敵範囲内 → 最も近い敵へ接近
-            return self._move_toward(agent, nearest.x, nearest.y, game_map)
-
-        # 状態3 PATROL: 敵なし → 敵ベースへ直進
-        return self._move_toward(agent, *self.target, game_map)
-
-    def _move_toward(self, agent: Agent, tx: int, ty: int, game_map: Map) -> Action:
-        """指定座標 (tx, ty) に向かう貪欲移動アクションを返す。"""
-        dy = ty - agent.y
-        dx = tx - agent.x
-
-        if dx == 0 and dy == 0:
-            return Action.STAY
-
-        candidates: list[Action] = []
-        if abs(dy) >= abs(dx):
-            if dy > 0: candidates.append(Action.MOVE_DOWN)
-            if dy < 0: candidates.append(Action.MOVE_UP)
-            if dx > 0: candidates.append(Action.MOVE_RIGHT)
-            if dx < 0: candidates.append(Action.MOVE_LEFT)
-        else:
-            if dx > 0: candidates.append(Action.MOVE_RIGHT)
-            if dx < 0: candidates.append(Action.MOVE_LEFT)
-            if dy > 0: candidates.append(Action.MOVE_DOWN)
-            if dy < 0: candidates.append(Action.MOVE_UP)
-
-        for action in candidates:
-            ddx, ddy = ACTION_DELTA[action]
-            if game_map.is_walkable(agent.x + ddx, agent.y + ddy):
-                return action
-
-        return Action.STAY  # 全方向ふさがれた場合
-
-
-class PlantCaptureBrain(GreedyBaseAttackBrain):
-    """
-    プラント占拠を優先しながら、敵を検知したら戦闘を行う戦略。
-
-    行動状態（優先順）:
-      1. ATTACK  : ロックオン距離（LOCKON_RANGE_C）内に敵がいる
-                   → STAY（足を止めて射撃）
-      2. APPROACH: 索敵範囲（SEARCH_RANGE_C）内・ロックオン外に敵がいる
-                   → 最も近い敵へ貪欲移動
-      3. CAPTURE : 敵が視界外・自チーム未占拠プラントがある
-                   → 自チームのベースに最も近い未占拠プラントへ貪欲移動
-                   （チームA: y が最小のプラント、チームB: y が最大のプラント）
-      4. PATROL  : 全プラントが自チーム占拠済み（またはプラントなし）
-                   → 目標（敵ベース）へ貪欲移動
-    """
-
-    def decide(self, agent: Agent, game_map: Map,
-               plants: list[Plant], agents: list[Agent]) -> Action:
-        # 生存している敵エージェントを列挙
-        enemies = [a for a in agents if a.alive and a.team != agent.team]
-        visible = [e for e in enemies if agent.in_search_range(e)]
-
-        if visible:
-            nearest = min(visible, key=lambda e: agent.dist_cells(e))
-
-            # 状態1 ATTACK: ロックオン距離内 → 足を止めて射撃
-            if agent.in_lockon_range(nearest):
-                return Action.STAY
-
-            # 状態2 APPROACH: 索敵範囲内 → 最も近い敵へ接近
-            return self._move_toward(agent, nearest.x, nearest.y, game_map)
-
-        # 状態3 CAPTURE: 自チームが占拠していないプラントを探す
-        uncaptured = [p for p in plants if p.owner != agent.team]
-        if uncaptured:
-            # 自チームのベースに最も近い未占拠プラントを選択
-            if agent.team == 0:
-                target_plant = min(uncaptured, key=lambda p: p.y)  # 上端ベース → y最小
-            else:
-                target_plant = max(uncaptured, key=lambda p: p.y)  # 下端ベース → y最大
-            return self._move_toward(agent, target_plant.x, target_plant.y, game_map)
-
-        # 状態4 PATROL: 全プラント占拠済み → 敵ベースへ直進
-        return self._move_toward(agent, *self.target, game_map)
-
-
-class AggressiveCombatBrain(GreedyBaseAttackBrain):
-    """
-    戦闘重視の戦略。マップ上で可視化された敵（detected=True）を積極的に追撃する。
-
-    行動状態（優先順）:
-      1. ATTACK  : ロックオン距離（LOCKON_RANGE_C）内に敵がいる
-                   → STAY（足を止めて射撃）
-      2. APPROACH: 索敵範囲（SEARCH_RANGE_C）内・ロックオン外の敵がいる
-                   → 最も近い敵へ貪欲移動
-      3. HUNT    : 索敵範囲外だが detected=True の敵がいる
-                   → 最近接 detected 敵へ貪欲移動
-      4. PATROL  : 追跡対象なし → 目標（敵ベース）へ貪欲移動
-    """
-
-    def decide(self, agent: Agent, game_map: Map,
-               plants: list[Plant], agents: list[Agent]) -> Action:
-        del plants  # 未使用
-
-        enemies = [a for a in agents if a.alive and a.team != agent.team]
-        visible = [e for e in enemies if agent.in_search_range(e)]
-
-        if visible:
-            nearest = min(visible, key=lambda e: agent.dist_cells(e))
-
-            # 状態1 ATTACK: ロックオン距離内 → 足を止めて射撃
-            if agent.in_lockon_range(nearest):
-                return Action.STAY
-
-            # 状態2 APPROACH: 索敵範囲内 → 最も近い敵へ接近
-            return self._move_toward(agent, nearest.x, nearest.y, game_map)
-
-        # 状態3 HUNT: detected=True の敵（味方が発見済み）を追撃
-        detected_enemies = [e for e in enemies if e.detected]
-        if detected_enemies:
-            target = min(detected_enemies, key=lambda e: agent.dist_cells(e))
-            return self._move_toward(agent, target.x, target.y, game_map)
-
-        # 状態4 PATROL: 追跡対象なし → 敵ベースへ直進
-        return self._move_toward(agent, *self.target, game_map)
-
-
-# ─────────────────────────────────────────
-# エージェント（ブラスト・ランナー）
-# ─────────────────────────────────────────
-class Agent:
-    TEAM_COLORS = {0: "#1a6fb5", 1: "#c0392b"}
-
-    def __init__(self, agent_id: int, x: int, y: int, team: int,
-                 brain: Brain | None = None,
-                 role: Role = Role.ASSAULT):
-        self.agent_id      = agent_id
-        self.x             = x
-        self.y             = y
-        self.team          = team          # 0 = チームA, 1 = チームB
-        self.role          = role          # ロール（現フェーズは全員 ASSAULT）
-        self.hp            = AGENT_HP      # 現在HP
-        self.max_hp        = AGENT_HP      # 最大HP（HP バー表示用）
-        self.alive         = True
-        self.respawn_timer = 0             # 0=生存中, >0=リスポーン待ちの残ステップ数
-        self.brain         = brain         # 行動戦略（None なら手動操作）
-        self.detected       = False        # 被索敵状態（True=敵に位置情報を把握されている）
-        self.exposure_steps = 0            # 敵の索敵範囲内にいる連続ステップ数
-
-    def move(self, dx: int, dy: int, game_map: Map) -> bool:
-        nx, ny = self.x + dx, self.y + dy
-        if game_map.is_walkable(nx, ny):
-            self.x, self.y = nx, ny
-            return True
-        return False
-
-    def move_up(self,    m: Map) -> bool: return self.move( 0, -1, m)
-    def move_down(self,  m: Map) -> bool: return self.move( 0,  1, m)
-    def move_left(self,  m: Map) -> bool: return self.move(-1,  0, m)
-    def move_right(self, m: Map) -> bool: return self.move( 1,  0, m)
-
-    def dist_cells(self, other: Agent) -> float:
-        """他エージェントとのユークリッド距離（セル単位）"""
-        return ((self.x - other.x) ** 2 + (self.y - other.y) ** 2) ** 0.5
-
-    def in_search_range(self, other: Agent) -> bool:
-        """other が索敵範囲（SEARCH_RANGE_C）内かどうか"""
-        return self.dist_cells(other) <= SEARCH_RANGE_C
-
-    def in_lockon_range(self, other: Agent) -> bool:
-        """other がロックオン距離（LOCKON_RANGE_C）内かどうか"""
-        return self.dist_cells(other) <= LOCKON_RANGE_C
-
-    @property
-    def pos(self) -> tuple[int, int]:
-        return (self.x, self.y)
-
-    @property
-    def pos_m(self) -> tuple[int, int]:
-        return (self.x * CELL_SIZE_M, self.y * CELL_SIZE_M)
-
-    def __repr__(self) -> str:
-        status = (f"DEAD(残{self.respawn_timer}s)" if not self.alive
-                  else f"hp={self.hp}/{self.max_hp}")
-        return (f"Agent(id={self.agent_id}, team={self.team}, "
-                f"pos={self.pos_m}m, {status})")
+from constants import (
+    CELL_SIZE_M, MAP_WIDTH_M, MAP_HEIGHT_M, MAP_W, MAP_H,
+    BASE_DEPTH, NUM_PLANTS, PLANT_RADIUS_M, PLANT_RADIUS_C,
+    AGENT_HP, DPS, HIT_RATE, SEARCH_RANGE_M, SEARCH_RANGE_C,
+    LOCKON_RANGE_M, LOCKON_RANGE_C, RESPAWN_STEPS, MOVE_SPEED_MPS, CELLS_PER_STEP,
+    CORE_HP, CORE_DMG_PER_KILL, MATCH_TIME_STEPS, DETECTION_STEPS,
+)
+from game_types import (
+    CELL_COLORS, CellType, ACTION_DELTA, Action, Role, Plant, Core, Map,
+)
+from brain import Brain, GreedyBaseAttackBrain, PlantCaptureBrain, AggressiveCombatBrain
+from agent import (
+    _ASSETS_DIR, _ROLE_IMAGE_FILES, _role_image_cache, _get_role_image,
+    RoleLoadout, AgentLoadout, Agent,
+)
+from map_gen import get_base_spawn_points, create_map
 
 
 # ─────────────────────────────────────────
@@ -778,15 +350,15 @@ class Simulation:
                 continue   # すでに破壊済み
 
             prev_hp  = core.hp
-            core.apply_damage(DPS)
+            core.apply_damage(agent.dps)
             lbl      = "A" if base_owner == 0 else "B"
             events.append(
                 f"  💥 BR{agent.agent_id} が CORE {lbl} を攻撃！"
-                f"  -{DPS}  → {int(core.hp):,}/{int(core.max_hp):,}"
+                f"  -{agent.dps}  → {int(core.hp):,}/{int(core.max_hp):,}"
                 f" ({core.hp_pct:.1f}%)"
             )
             self._log_event('core_attack', agent_id=agent.agent_id, agent_team=agent.team,
-                            target_team=base_owner, damage=DPS)
+                            target_team=base_owner, damage=agent.dps)
 
             # 破壊判定（この攻撃でゼロになった）
             if prev_hp > 0 and core.destroyed:
@@ -859,9 +431,9 @@ class Simulation:
         events: list[str] = []
 
         # フェーズ1: 全エージェントの射撃を計算（ダメージ量を積算）
-        pending_damage: dict[int, int] = {}              # agent_id → 被ダメージ合計
-        shooters: dict[int, int] = {}                    # target.agent_id → shooter.agent_id（ログ用）
-        hit_log: list[tuple[int, int, int, int]] = []    # (shooter_id, shooter_team, target_id, target_team)
+        pending_damage: dict[int, int] = {}                      # agent_id → 被ダメージ合計
+        shooters: dict[int, int] = {}                            # target.agent_id → shooter.agent_id（ログ用）
+        hit_log: list[tuple[int, int, int, int, int]] = []       # (shooter_id, shooter_team, target_id, target_team, damage)
 
         for agent in self.agents:
             if not agent.alive:
@@ -877,12 +449,12 @@ class Simulation:
 
             target = min(in_range, key=lambda e: agent.dist_cells(e))
 
-            # 命中判定
+            # 命中判定（エージェント固有の dps を使用）
             if random.random() < HIT_RATE:
                 tid = target.agent_id
-                pending_damage[tid] = pending_damage.get(tid, 0) + DPS
+                pending_damage[tid] = pending_damage.get(tid, 0) + agent.dps
                 shooters[tid] = agent.agent_id   # 最後に命中させたシューターを記録
-                hit_log.append((agent.agent_id, agent.team, tid, target.team))
+                hit_log.append((agent.agent_id, agent.team, tid, target.team, agent.dps))
 
         # フェーズ2: 一括ダメージ適用
         for agent in self.agents:
@@ -900,20 +472,20 @@ class Simulation:
                     f"  ★★★ {shooter_str} が BR{agent.agent_id}(チーム{team_str}) を撃破！"
                     f"  ({RESPAWN_STEPS}s 後にリスポーン)"
                 )
-                for sh_id, sh_team, tgt_id, tgt_team in hit_log:
+                for sh_id, sh_team, tgt_id, tgt_team, hit_dmg in hit_log:
                     if tgt_id == agent.agent_id:
                         self._log_event('kill', agent_id=sh_id, agent_team=sh_team,
-                                        target_id=tgt_id, target_team=tgt_team, damage=DPS)
+                                        target_id=tgt_id, target_team=tgt_team, damage=hit_dmg)
             else:
                 hp_pct = agent.hp / agent.max_hp * 100
                 events.append(
                     f"  ⚡ {shooter_str} → BR{agent.agent_id}(チーム{team_str})"
                     f"  -{dmg}  HP: {agent.hp}/{agent.max_hp} ({hp_pct:.0f}%)"
                 )
-                for sh_id, sh_team, tgt_id, tgt_team in hit_log:
+                for sh_id, sh_team, tgt_id, tgt_team, hit_dmg in hit_log:
                     if tgt_id == agent.agent_id:
                         self._log_event('hit', agent_id=sh_id, agent_team=sh_team,
-                                        target_id=tgt_id, target_team=tgt_team, damage=DPS)
+                                        target_id=tgt_id, target_team=tgt_team, damage=hit_dmg)
 
         return events
 
@@ -954,7 +526,7 @@ class Simulation:
 
                 agent.x      = spawn_x
                 agent.y      = spawn_y
-                agent.hp     = AGENT_HP
+                agent.hp     = agent.max_hp   # loadout.max_hp またはデフォルト AGENT_HP
                 agent.alive  = True
                 team_str = "A" if agent.team == 0 else "B"
                 events.append(
@@ -980,8 +552,8 @@ class Simulation:
     def _execute_action(self, agent: Agent, action: Action):
         ddx, ddy = ACTION_DELTA[action]
         if ddx != 0 or ddy != 0:
-            # CELLS_PER_STEP 分だけ同方向に移動（壁に当たったら中断）
-            for _ in range(CELLS_PER_STEP):
+            # agent.cells_per_step 分だけ同方向に移動（壁に当たったら中断）
+            for _ in range(agent.cells_per_step):
                 if not agent.move(ddx, ddy, self.game_map):
                     break
 
@@ -1222,70 +794,6 @@ class Simulation:
         print(f"  steps  : steps_{ts}.csv  ({len(self._step_log)} rows)")
         print(f"  events : events_{ts}.csv  ({len(self._event_log)} rows)")
         return ts
-
-
-# ─────────────────────────────────────────
-# ベース再出撃地点
-# ─────────────────────────────────────────
-def get_base_spawn_points(team: int) -> list[tuple[int, int]]:
-    """
-    ベースの再出撃地点を左右2か所返す。
-
-    x: ベース左端(x=0)から1グリッド(x=1)、右端(x=MAP_W-1)から1グリッド(x=MAP_W-2)
-    y: ベース中央
-      Team A (team=0): y = BASE_DEPTH // 2              (= 1)
-      Team B (team=1): y = MAP_H - BASE_DEPTH // 2 - 1  (= 48)
-    """
-    y = BASE_DEPTH // 2 if team == 0 else MAP_H - BASE_DEPTH // 2 - 1
-    return [(1, y), (MAP_W - 2, y)]
-
-
-# ─────────────────────────────────────────
-# マップ・プラント生成
-# ─────────────────────────────────────────
-def create_map() -> tuple[Map, list[Plant]]:
-    """
-    縦500m × 横100m (50×10 セル) のマップを生成する。
-
-    レイアウト:
-      y =  0 〜  2 : Base A（チームA、上端）
-      y = 47 〜 49 : Base B（チームB、下端）
-
-    プラント（NUM_PLANTS=3）:
-      ベース間（y=3〜46）を等分割した位置に配置
-      横中央（x=5, 50m）に設置
-      占拠範囲: 半径 30m = 3 セル
-
-    プラント位置:
-      linspace(3, 46, 5)[1:-1] → y = 14 (140m), 25 (250m), 35 (350m)
-    """
-    game_map = Map(MAP_W, MAP_H)
-
-    # Base A（上端 BASE_DEPTH 行）
-    for y in range(BASE_DEPTH):
-        for x in range(MAP_W):
-            game_map.set_cell(x, y, CellType.BASE_A)
-
-    # Base B（下端 BASE_DEPTH 行）
-    for y in range(MAP_H - BASE_DEPTH, MAP_H):
-        for x in range(MAP_W):
-            game_map.set_cell(x, y, CellType.BASE_B)
-
-    # プラント位置：ベース間を等分割
-    inner_top = BASE_DEPTH               # y = 3
-    inner_bot = MAP_H - BASE_DEPTH - 1   # y = 46
-    plant_ys = [
-        int(y + 0.5)
-        for y in np.linspace(inner_top, inner_bot, NUM_PLANTS + 2)[1:-1]
-    ]
-    plant_x = MAP_W // 2  # 横中央 x = 5
-
-    plants: list[Plant] = []
-    for i, py in enumerate(plant_ys):
-        game_map.set_cell(plant_x, py, CellType.PLANT)
-        plants.append(Plant(plant_id=i + 1, x=plant_x, y=py))
-
-    return game_map, plants
 
 
 # ─────────────────────────────────────────

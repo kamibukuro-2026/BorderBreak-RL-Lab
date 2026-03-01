@@ -103,3 +103,62 @@ def calc_full(
     if weapons:
         out["weapons"] = {slot: calc_weapon(catalog, wref) for slot, wref in weapons.items()}
     return out
+
+
+# 1セルあたりのメートル数（simulation.py の CELL_SIZE_M と同値、循環 import 回避）
+_CELL_SIZE_M = 10
+
+
+def assemble_agent_params(
+    calc_result: Dict[str, Any],
+    *,
+    default_dps: int = 3000,
+    default_search_range_c: float = 8.0,
+    default_lockon_range_c: float = 6.0,
+    default_cells_per_step: int = 2,
+) -> Dict[str, Any]:
+    """
+    calc_full() の出力から Agent.__init__ に渡す per-agent パラメータを抽出する。
+
+    Parameters
+    ----------
+    calc_result : dict
+        calc_full() の戻り値と同じ構造を持つ dict。
+    default_dps : int
+        weapons.main.damagePerSec が存在しない場合のフォールバック値。
+    default_search_range_c : float
+        draw.head.sakuteki が存在しない場合のフォールバック値（セル単位）。
+    default_lockon_range_c : float
+        draw.head.lockOn が存在しない場合のフォールバック値（セル単位）。
+    default_cells_per_step : int
+        base.walk が存在しない場合のフォールバック値。
+
+    Returns
+    -------
+    dict
+        ``Agent(**params, agent_id=..., x=..., y=..., team=...)`` に展開できる kwargs dict。
+        キー: dps, search_range_c, lockon_range_c, cells_per_step
+    """
+    # DPS: main 武器の damagePerSec[0]
+    weapons = calc_result.get("weapons", {})
+    main_weapon = weapons.get("main", {})
+    dps_list = main_weapon.get("damagePerSec")
+    dps = int(dps_list[0]) if dps_list else default_dps
+
+    # 索敵・ロックオン範囲（メートル → セル）
+    head = calc_result.get("draw", {}).get("head", {})
+    sakuteki = head.get("sakuteki", {}).get("param")
+    lockon = head.get("lockOn", {}).get("param")
+    search_range_c = (sakuteki / _CELL_SIZE_M) if sakuteki is not None else default_search_range_c
+    lockon_range_c = (lockon / _CELL_SIZE_M) if lockon is not None else default_lockon_range_c
+
+    # 移動速度 (m/s) → cells_per_step（最低 1）
+    walk = calc_result.get("base", {}).get("walk", {}).get("param")
+    cells_per_step = max(1, round(walk / _CELL_SIZE_M)) if walk is not None else default_cells_per_step
+
+    return {
+        "dps": dps,
+        "search_range_c": search_range_c,
+        "lockon_range_c": lockon_range_c,
+        "cells_per_step": cells_per_step,
+    }
