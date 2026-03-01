@@ -11,7 +11,7 @@ Agent クラスの per-agent パラメータ（パーツ由来）のテスト
 import pytest
 from simulation import (
     Agent,
-    DPS, SEARCH_RANGE_C, LOCKON_RANGE_C, CELLS_PER_STEP,
+    DPS, HIT_RATE, SEARCH_RANGE_C, LOCKON_RANGE_C, CELLS_PER_STEP,
 )
 
 
@@ -230,3 +230,79 @@ class TestInLockonRangeUsesInstanceVar:
         b = make_agent(agent_id=2, x=7, y=0, team=1)
         assert a.in_lockon_range(b)
         assert not b.in_lockon_range(a)
+
+
+# ─────────────────────────────────────────
+# hit_rate のテスト
+# ─────────────────────────────────────────
+class TestAgentHitRateKwarg:
+
+    def test_default_hit_rate_equals_constant(self):
+        """hit_rate 未指定のデフォルトは HIT_RATE 定数と一致"""
+        a = make_agent()
+        assert a.hit_rate == HIT_RATE
+
+    def test_custom_hit_rate_is_stored(self):
+        """カスタム hit_rate が保存される"""
+        a = make_agent(hit_rate=0.95)
+        assert a.hit_rate == pytest.approx(0.95)
+
+    def test_low_hit_rate_is_stored(self):
+        """低い hit_rate (0.40) も保存される"""
+        a = make_agent(hit_rate=0.40)
+        assert a.hit_rate == pytest.approx(0.40)
+
+    def test_hit_rate_one_is_stored(self):
+        """hit_rate=1.0 も保存される"""
+        a = make_agent(hit_rate=1.0)
+        assert a.hit_rate == pytest.approx(1.0)
+
+    def test_hit_rate_zero_is_stored(self):
+        """hit_rate=0.0 も保存される"""
+        a = make_agent(hit_rate=0.0)
+        assert a.hit_rate == pytest.approx(0.0)
+
+    def test_hit_rate_does_not_affect_hp(self):
+        """hit_rate は hp/max_hp に影響しない"""
+        from simulation import AGENT_HP
+        a = make_agent(hit_rate=0.60)
+        assert a.hp == AGENT_HP
+        assert a.max_hp == AGENT_HP
+
+    def test_hit_rate_does_not_affect_team(self):
+        """hit_rate は team に影響しない"""
+        a = make_agent(team=1, hit_rate=0.75)
+        assert a.team == 1
+
+
+# ─────────────────────────────────────────
+# shots_per_step のテスト
+# ─────────────────────────────────────────
+class TestAgentShotsPerStepKwarg:
+
+    def test_default_shots_per_step_is_one(self):
+        """shots_per_step 未指定のデフォルトは 1"""
+        a = make_agent()
+        assert a.shots_per_step == 1
+
+    def test_custom_shots_per_step_is_stored(self):
+        """カスタム shots_per_step が保存される"""
+        a = make_agent(shots_per_step=3)
+        assert a.shots_per_step == 3
+
+    def test_shots_per_step_high_value(self):
+        """shots_per_step=10 も保存される"""
+        a = make_agent(shots_per_step=10)
+        assert a.shots_per_step == 10
+
+    def test_shots_per_step_does_not_affect_hp(self):
+        """shots_per_step は hp に影響しない"""
+        from simulation import AGENT_HP
+        a = make_agent(shots_per_step=5)
+        assert a.hp == AGENT_HP
+
+    def test_all_new_params_combined(self):
+        """hit_rate と shots_per_step を同時に指定できる"""
+        a = make_agent(hit_rate=0.90, shots_per_step=4)
+        assert a.hit_rate == pytest.approx(0.90)
+        assert a.shots_per_step == 4

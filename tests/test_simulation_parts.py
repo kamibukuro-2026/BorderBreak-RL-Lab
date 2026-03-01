@@ -47,7 +47,7 @@ class TestResolveCombatUsesAgentDps:
     def test_custom_dps_deals_custom_damage(self):
         """dps=5000 のエージェントが命中したとき 5000 ダメージ入る"""
         sim = make_sim()
-        add_agent(sim, 1, 0, 0, team=0, dps=5000)
+        add_agent(sim, 1, 0, 0, team=0, dps=5000, hit_rate=1.0)
         target = add_agent(sim, 2, 0, 5, team=1)        # dist=5 ≤ lockon_range_c(6)
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
             sim._resolve_combat()
@@ -56,7 +56,7 @@ class TestResolveCombatUsesAgentDps:
     def test_low_dps_deals_less_damage(self):
         """dps=1000 のエージェントが命中したとき 1000 ダメージ入る"""
         sim = make_sim()
-        add_agent(sim, 1, 0, 0, team=0, dps=1000)
+        add_agent(sim, 1, 0, 0, team=0, dps=1000, hit_rate=1.0)
         target = add_agent(sim, 2, 0, 5, team=1)
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
             sim._resolve_combat()
@@ -65,7 +65,7 @@ class TestResolveCombatUsesAgentDps:
     def test_default_dps_deals_dps_constant_damage(self):
         """dps 未指定（デフォルト）のエージェントは DPS 定数分のダメージ"""
         sim = make_sim()
-        add_agent(sim, 1, 0, 0, team=0)               # dps=DPS
+        add_agent(sim, 1, 0, 0, team=0, hit_rate=1.0)  # dps=DPS
         target = add_agent(sim, 2, 0, 5, team=1)
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
             sim._resolve_combat()
@@ -75,8 +75,8 @@ class TestResolveCombatUsesAgentDps:
         """dps が異なる2エージェントが同じターゲットを攻撃 → 合計ダメージ"""
         sim = make_sim()
         # shooter_a: dps=2000, shooter_b: dps=4000 → 合計 6000
-        add_agent(sim, 1, 0, 0, team=0, dps=2000)
-        add_agent(sim, 2, 1, 0, team=0, dps=4000)
+        add_agent(sim, 1, 0, 0, team=0, dps=2000, hit_rate=1.0)
+        add_agent(sim, 2, 1, 0, team=0, dps=4000, hit_rate=1.0)
         target = add_agent(sim, 3, 0, 5, team=1)       # 両方にとって lockon 範囲内
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
             sim._resolve_combat()
@@ -94,20 +94,19 @@ class TestResolveCombatUsesAgentDps:
     def test_high_dps_kills_in_one_hit(self):
         """dps=AGENT_HP で1発撃破"""
         sim = make_sim()
-        add_agent(sim, 1, 0, 0, team=0, dps=AGENT_HP)
+        add_agent(sim, 1, 0, 0, team=0, dps=AGENT_HP, hit_rate=1.0)
         target = add_agent(sim, 2, 0, 5, team=1)
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
             sim._resolve_combat()
         assert target.hp == 0
         assert not target.alive
 
-    def test_miss_does_not_use_dps(self):
-        """外れ時は dps に関わらずダメージなし"""
+    def test_out_of_lockon_range_dps_not_applied(self):
+        """ロックオン範囲外では dps が大きくてもダメージなし"""
         sim = make_sim()
         add_agent(sim, 1, 0, 0, team=0, dps=99999)
-        target = add_agent(sim, 2, 0, 5, team=1)
-        with patch('simulation.random.random', return_value=ALWAYS_MISS):
-            sim._resolve_combat()
+        target = add_agent(sim, 2, 0, 10, team=1)   # dist=10 > lockon_range_c=6
+        sim._resolve_combat()
         assert target.hp == AGENT_HP
 
 

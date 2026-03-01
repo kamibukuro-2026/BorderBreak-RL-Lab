@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 
 from constants import (
-    AGENT_HP, DPS, SEARCH_RANGE_C, LOCKON_RANGE_C, CELLS_PER_STEP, CELL_SIZE_M,
+    AGENT_HP, DPS, HIT_RATE, SEARCH_RANGE_C, LOCKON_RANGE_C, CELLS_PER_STEP, CELL_SIZE_M,
 )
 from game_types import Role, Map
 
@@ -88,6 +88,8 @@ class Agent:
                  loadout: AgentLoadout | None = None,
                  max_hp: int = AGENT_HP,
                  dps: int = DPS,
+                 hit_rate: float = HIT_RATE,
+                 shots_per_step: int = 1,
                  search_range_c: float = SEARCH_RANGE_C,
                  lockon_range_c: float = LOCKON_RANGE_C,
                  cells_per_step: int = CELLS_PER_STEP):
@@ -108,6 +110,8 @@ class Agent:
             self.search_range_c = loadout.search_range_c
             self.lockon_range_c = loadout.lockon_range_c
             self.cells_per_step = loadout.cells_per_step
+            self.hit_rate       = hit_rate       # T-8 で loadout 組込み予定
+            self.shots_per_step = shots_per_step # T-8 で loadout 組込み予定
             # 初期ロールの武器・Brain を適用
             if role in loadout.roles:
                 role_cfg   = loadout.roles[role]
@@ -120,6 +124,8 @@ class Agent:
             # loadout なし：個別パラメータを直接使用（後方互換）
             self.max_hp         = max_hp
             self.dps            = dps
+            self.hit_rate       = hit_rate
+            self.shots_per_step = shots_per_step
             self.brain          = brain
             self.search_range_c = search_range_c
             self.lockon_range_c = lockon_range_c

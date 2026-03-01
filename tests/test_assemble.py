@@ -10,7 +10,7 @@ assemble_agent_params() のテスト
 """
 import pytest
 from assemble import assemble_agent_params
-from simulation import Agent, AGENT_HP, DPS, SEARCH_RANGE_C, LOCKON_RANGE_C, CELLS_PER_STEP
+from simulation import Agent, AGENT_HP, DPS, HIT_RATE, SEARCH_RANGE_C, LOCKON_RANGE_C, CELLS_PER_STEP
 
 
 # ─────────────────────────────────────────
@@ -22,6 +22,8 @@ def make_calc_result(
     lockon_m: float = 60.0,
     dps_per_sec: int = 3000,
     armor_avg_param: float = 1.0,
+    aim_param: float = 12.0,
+    rate: float = 60.0,
 ) -> dict:
     """calc_full() 出力と同じ構造を持つ最小の dict を返す"""
     return {
@@ -33,10 +35,11 @@ def make_calc_result(
             "head": {
                 "sakuteki": {"param": sakuteki_m},
                 "lockOn":   {"param": lockon_m},
+                "aim":      {"param": aim_param},
             },
         },
         "weapons": {
-            "main": {"damagePerSec": [dps_per_sec]},
+            "main": {"damagePerSec": [dps_per_sec], "rate": rate},
         },
     }
 
@@ -296,7 +299,7 @@ class TestAssembleAgentParamsStructure:
         assert isinstance(params, dict)
 
     def test_has_required_keys(self):
-        """5つの必須キーが含まれる"""
+        """7つの必須キーが含まれる"""
         result = make_calc_result()
         params = assemble_agent_params(result)
         assert "max_hp" in params
@@ -304,12 +307,17 @@ class TestAssembleAgentParamsStructure:
         assert "search_range_c" in params
         assert "lockon_range_c" in params
         assert "cells_per_step" in params
+        assert "hit_rate" in params
+        assert "shots_per_step" in params
 
     def test_no_extra_keys(self):
         """余分なキーが含まれない"""
         result = make_calc_result()
         params = assemble_agent_params(result)
-        assert set(params.keys()) == {"max_hp", "dps", "search_range_c", "lockon_range_c", "cells_per_step"}
+        assert set(params.keys()) == {
+            "max_hp", "dps", "search_range_c", "lockon_range_c",
+            "cells_per_step", "hit_rate", "shots_per_step",
+        }
 
     def test_params_can_be_spread_into_agent(self):
         """返り値を Agent(**params, ...) に展開できる"""
@@ -321,6 +329,8 @@ class TestAssembleAgentParamsStructure:
         assert agent.search_range_c == params["search_range_c"]
         assert agent.lockon_range_c == params["lockon_range_c"]
         assert agent.cells_per_step == params["cells_per_step"]
+        assert agent.hit_rate == pytest.approx(params["hit_rate"])
+        assert agent.shots_per_step == params["shots_per_step"]
 
     def test_fully_missing_result_all_defaults(self):
         """空の dict → 全フィールドがデフォルト値"""
@@ -330,6 +340,8 @@ class TestAssembleAgentParamsStructure:
         assert params["search_range_c"] == SEARCH_RANGE_C
         assert params["lockon_range_c"] == LOCKON_RANGE_C
         assert params["cells_per_step"] == CELLS_PER_STEP
+        assert params["hit_rate"] == pytest.approx(HIT_RATE)
+        assert params["shots_per_step"] == 1
 
     def test_custom_defaults_are_used_when_fields_missing(self):
         """カスタム default 値が欠損時に正しく使われる"""
@@ -340,9 +352,133 @@ class TestAssembleAgentParamsStructure:
             default_search_range_c=11.0,
             default_lockon_range_c=7.5,
             default_cells_per_step=4,
+            default_hit_rate=0.70,
+            default_shots_per_step=3,
         )
         assert params["max_hp"] == 9999
         assert params["dps"] == 1234
         assert params["search_range_c"] == pytest.approx(11.0)
         assert params["lockon_range_c"] == pytest.approx(7.5)
         assert params["cells_per_step"] == 4
+        assert params["hit_rate"] == pytest.approx(0.70)
+        assert params["shots_per_step"] == 3
+
+
+# ─────────────────────────────────────────
+# hit_rate の抽出テスト
+# ─────────────────────────────────────────
+class TestAssembleAgentParamsHitRate:
+
+    def test_aim_param_12_gives_default_hit_rate(self):
+        """aim.param=12 (B ランク) → hit_rate = HIT_RATE=0.64（デフォルト命中率）"""
+        result = make_calc_result(aim_param=12.0)
+        params = assemble_agent_params(result)
+        assert params["hit_rate"] == pytest.approx(HIT_RATE)
+
+    def test_high_aim_gives_higher_hit_rate(self):
+        """aim.param=37 (S ランク) → hit_rate = 0.64 + (37-12)*0.006 = 0.79"""
+        result = make_calc_result(aim_param=37.0)
+        params = assemble_agent_params(result)
+        assert params["hit_rate"] == pytest.approx(HIT_RATE + (37.0 - 12.0) * 0.006)
+
+    def test_low_aim_gives_lower_hit_rate(self):
+        """aim.param=-24 (E ランク) → hit_rate = 0.64 + (-24-12)*0.006 = 0.424"""
+        result = make_calc_result(aim_param=-24.0)
+        params = assemble_agent_params(result)
+        assert params["hit_rate"] == pytest.approx(HIT_RATE + (-24.0 - 12.0) * 0.006)
+
+    def test_hit_rate_clamped_at_max_1_0(self):
+        """aim が非常に高い → hit_rate は 1.0 でクランプ"""
+        result = make_calc_result(aim_param=200.0)
+        params = assemble_agent_params(result)
+        assert params["hit_rate"] == pytest.approx(1.0)
+
+    def test_hit_rate_clamped_at_min_0_4(self):
+        """aim が非常に低い → hit_rate は 0.40 でクランプ"""
+        result = make_calc_result(aim_param=-1000.0)
+        params = assemble_agent_params(result)
+        assert params["hit_rate"] == pytest.approx(0.40)
+
+    def test_missing_aim_uses_default_hit_rate(self):
+        """draw.head.aim がない → default_hit_rate を使う"""
+        result = make_calc_result()
+        del result["draw"]["head"]["aim"]
+        params = assemble_agent_params(result, default_hit_rate=0.65)
+        assert params["hit_rate"] == pytest.approx(0.65)
+
+    def test_missing_head_uses_default_hit_rate(self):
+        """draw.head がない → default_hit_rate を使う"""
+        result = make_calc_result()
+        del result["draw"]["head"]
+        params = assemble_agent_params(result, default_hit_rate=0.55)
+        assert params["hit_rate"] == pytest.approx(0.55)
+
+    def test_default_hit_rate_matches_hit_rate_constant(self):
+        """フォールバックはシミュレーター定数 HIT_RATE と一致"""
+        result = make_calc_result()
+        del result["draw"]["head"]["aim"]
+        params = assemble_agent_params(result)
+        assert params["hit_rate"] == pytest.approx(HIT_RATE)
+
+    def test_hit_rate_is_float(self):
+        """hit_rate は float 型"""
+        result = make_calc_result(aim_param=12.0)
+        params = assemble_agent_params(result)
+        assert isinstance(params["hit_rate"], float)
+
+
+# ─────────────────────────────────────────
+# shots_per_step の抽出テスト
+# ─────────────────────────────────────────
+class TestAssembleAgentParamsShotsPerStep:
+
+    def test_rate_60_gives_shots_per_step_1(self):
+        """rate=60 → round(60/60)=1 → shots_per_step=1"""
+        result = make_calc_result(rate=60.0)
+        params = assemble_agent_params(result)
+        assert params["shots_per_step"] == 1
+
+    def test_rate_120_gives_shots_per_step_2(self):
+        """rate=120 → round(120/60)=2 → shots_per_step=2"""
+        result = make_calc_result(rate=120.0)
+        params = assemble_agent_params(result)
+        assert params["shots_per_step"] == 2
+
+    def test_rate_180_gives_shots_per_step_3(self):
+        """rate=180 → round(180/60)=3 → shots_per_step=3"""
+        result = make_calc_result(rate=180.0)
+        params = assemble_agent_params(result)
+        assert params["shots_per_step"] == 3
+
+    def test_rate_very_low_minimum_is_1(self):
+        """rate=10 → round(10/60)=0 → max(1,0)=1（最低値）"""
+        result = make_calc_result(rate=10.0)
+        params = assemble_agent_params(result)
+        assert params["shots_per_step"] == 1
+
+    def test_missing_rate_uses_default(self):
+        """weapons.main.rate がない → default_shots_per_step を使う"""
+        result = make_calc_result()
+        del result["weapons"]["main"]["rate"]
+        params = assemble_agent_params(result, default_shots_per_step=4)
+        assert params["shots_per_step"] == 4
+
+    def test_missing_weapons_uses_default_shots(self):
+        """weapons キーなし → default_shots_per_step を使う"""
+        result = make_calc_result()
+        del result["weapons"]
+        params = assemble_agent_params(result, default_shots_per_step=2)
+        assert params["shots_per_step"] == 2
+
+    def test_default_shots_per_step_is_one(self):
+        """フォールバックのデフォルトは 1"""
+        result = make_calc_result()
+        del result["weapons"]["main"]["rate"]
+        params = assemble_agent_params(result)
+        assert params["shots_per_step"] == 1
+
+    def test_shots_per_step_is_int(self):
+        """shots_per_step は整数型"""
+        result = make_calc_result(rate=60.0)
+        params = assemble_agent_params(result)
+        assert isinstance(params["shots_per_step"], int)

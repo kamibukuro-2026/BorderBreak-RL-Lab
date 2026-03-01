@@ -109,6 +109,12 @@ def calc_full(
 _CELL_SIZE_M = 10
 # 装甲計算の基準 HP（rank_param["armor"] はダメージ係数: 実効HP = 基準HP / 係数）
 _AGENT_HP_BASE = 10_000
+# T-2: aim.param → hit_rate 変換定数（constants.py と同値、循環 import 回避）
+_HIT_RATE_DEFAULT  = 0.64   # 標準命中率（constants.HIT_RATE と同値: ロックオン内×1.25 → 実効0.80）
+_AIM_PARAM_BASE    = 12.0   # B ランクの aim.param 値
+_AIM_SCALE         = 0.006  # aim 1点あたりの hit_rate 変化量
+_HIT_RATE_MIN      = 0.40   # hit_rate の下限
+_HIT_RATE_MAX      = 1.00   # hit_rate の上限
 
 
 def assemble_agent_params(
@@ -119,6 +125,8 @@ def assemble_agent_params(
     default_search_range_c: float = 8.0,
     default_lockon_range_c: float = 6.0,
     default_cells_per_step: int = 2,
+    default_hit_rate: float = _HIT_RATE_DEFAULT,
+    default_shots_per_step: int = 1,
 ) -> Dict[str, Any]:
     """
     calc_full() の出力から Agent.__init__ に渡す per-agent パラメータを抽出する。
@@ -137,12 +145,16 @@ def assemble_agent_params(
         draw.head.lockOn が存在しない場合のフォールバック値（セル単位）。
     default_cells_per_step : int
         base.walk が存在しない場合のフォールバック値。
+    default_hit_rate : float
+        draw.head.aim が存在しない場合のフォールバック値。
+    default_shots_per_step : int
+        weapons.main.rate が存在しない場合のフォールバック値。
 
     Returns
     -------
     dict
         ``Agent(**params, agent_id=..., x=..., y=..., team=...)`` に展開できる kwargs dict。
-        キー: max_hp, dps, search_range_c, lockon_range_c, cells_per_step
+        キー: max_hp, dps, search_range_c, lockon_range_c, cells_per_step, hit_rate, shots_per_step
     """
     # 実効 HP: armor_avg.param はダメージ係数（小さいほど硬い）
     # 実効HP = 基準HP / ダメージ係数  （例: S=0.63 → 15,873、C+=1.0 → 10,000、E-=1.38 → 7,246）
@@ -166,10 +178,24 @@ def assemble_agent_params(
     walk = calc_result.get("base", {}).get("walk", {}).get("param")
     cells_per_step = max(1, round(walk / _CELL_SIZE_M)) if walk is not None else default_cells_per_step
 
+    # aim.param → hit_rate（B ランク aim=12 が標準 0.80）
+    aim_param = head.get("aim", {}).get("param")
+    if aim_param is not None:
+        raw = _HIT_RATE_DEFAULT + (aim_param - _AIM_PARAM_BASE) * _AIM_SCALE
+        hit_rate = float(max(_HIT_RATE_MIN, min(_HIT_RATE_MAX, raw)))
+    else:
+        hit_rate = float(default_hit_rate)
+
+    # weapons.main.rate → shots_per_step（最低 1）
+    rate = main_weapon.get("rate")
+    shots_per_step = max(1, round(rate / 60)) if rate is not None else default_shots_per_step
+
     return {
         "max_hp": max_hp,
         "dps": dps,
         "search_range_c": search_range_c,
         "lockon_range_c": lockon_range_c,
         "cells_per_step": cells_per_step,
+        "hit_rate": hit_rate,
+        "shots_per_step": shots_per_step,
     }
