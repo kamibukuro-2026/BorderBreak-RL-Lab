@@ -71,10 +71,10 @@ class TestResolveCombat:
         assert make_sim()._resolve_combat() == []
 
     def test_out_of_lockon_range_no_damage(self):
-        """ロックオン距離外（dist > 6）では射撃されない"""
+        """ロックオン距離外（dist > 12）では射撃されない"""
         sim = make_sim()
         a = add_agent(sim, 1, 0,  0, team=0)
-        b = add_agent(sim, 2, 0, 10, team=1)   # dist = 10 > LOCKON_RANGE_C=6
+        b = add_agent(sim, 2, 0, 13, team=1)   # dist = 13 > LOCKON_RANGE_C=12
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
             sim._resolve_combat()
         assert a.hp == AGENT_HP
@@ -84,7 +84,7 @@ class TestResolveCombat:
         """命中時に DPS 分 HP が減る"""
         sim = make_sim()
         add_agent(sim, 1, 0, 0, team=0, hit_rate=1.0)
-        b = add_agent(sim, 2, 0, 5, team=1)   # dist = 5 ≤ 6
+        b = add_agent(sim, 2, 0, 5, team=1)   # dist = 5 ≤ 12
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
             sim._resolve_combat()
         assert b.hp == AGENT_HP - DPS
@@ -217,10 +217,10 @@ class TestResolveCombat:
         assert any("撃破" in e for e in events)
 
     def test_no_events_when_out_of_lockon_range(self):
-        """ロックオン範囲外（dist>6）ではイベント発生しない"""
+        """ロックオン範囲外（dist>12）ではイベント発生しない"""
         sim = make_sim()
         add_agent(sim, 1, 0,  0, team=0)
-        add_agent(sim, 2, 0, 10, team=1)   # dist=10 > LOCKON_RANGE_C=6
+        add_agent(sim, 2, 0, 13, team=1)   # dist=13 > LOCKON_RANGE_C=12
         events = sim._resolve_combat()
         assert events == []
 
@@ -387,9 +387,9 @@ class TestUpdateCores:
         assert sim.cores[1].hp == hp1
 
     def test_team_a_in_base_b_damages_team_b_core(self):
-        """チームA が BASE_B（y=47）に滞在 → チームB コアに DPS"""
+        """チームA が BASE_B（y=95）に滞在 → チームB コアに DPS"""
         sim = make_sim(with_bases=True)
-        add_agent(sim, 1, 5, 47, team=0)   # BASE_B セル
+        add_agent(sim, 1, 5, 95, team=0)   # BASE_B セル（y=94-99）
         initial = sim.cores[1].hp
         sim._update_cores()
         assert sim.cores[1].hp == pytest.approx(initial - DPS)
@@ -397,7 +397,7 @@ class TestUpdateCores:
     def test_team_b_in_base_a_damages_team_a_core(self):
         """チームB が BASE_A（y=1）に滞在 → チームA コアに DPS"""
         sim = make_sim(with_bases=True)
-        add_agent(sim, 2, 5, 1, team=1)    # BASE_A セル
+        add_agent(sim, 2, 5, 1, team=1)    # BASE_A セル（y=0-5）
         initial = sim.cores[0].hp
         sim._update_cores()
         assert sim.cores[0].hp == pytest.approx(initial - DPS)
@@ -413,7 +413,7 @@ class TestUpdateCores:
     def test_dead_agent_in_enemy_base_no_damage(self):
         """撃破済みエージェントはベース内でもダメージを与えない"""
         sim = make_sim(with_bases=True)
-        a = add_agent(sim, 1, 5, 47, team=0)
+        a = add_agent(sim, 1, 5, 95, team=0)   # BASE_B セル
         kill_agent(a)
         initial = sim.cores[1].hp
         sim._update_cores()
@@ -431,15 +431,15 @@ class TestUpdateCores:
         """破壊済みコアはそれ以上ダメージを受けない（0 のまま）"""
         sim = make_sim(with_bases=True)
         sim.cores[1].hp = 0.0              # 事前に破壊済み
-        add_agent(sim, 1, 5, 47, team=0)
+        add_agent(sim, 1, 5, 95, team=0)   # BASE_B セル
         sim._update_cores()
         assert sim.cores[1].hp == 0.0
 
     def test_multiple_attackers_accumulate_damage(self):
         """同ベース内に 2 人いる → 2×DPS の累積ダメージ"""
         sim = make_sim(with_bases=True)
-        add_agent(sim, 1, 5, 47, team=0)
-        add_agent(sim, 2, 5, 48, team=0)
+        add_agent(sim, 1, 5, 94, team=0)   # BASE_B セル
+        add_agent(sim, 2, 5, 95, team=0)   # BASE_B セル
         initial = sim.cores[1].hp
         sim._update_cores()
         assert sim.cores[1].hp == pytest.approx(initial - DPS * 2)
@@ -447,7 +447,7 @@ class TestUpdateCores:
     def test_events_returned_on_attack(self):
         """攻撃時はイベントリストが空でない"""
         sim = make_sim(with_bases=True)
-        add_agent(sim, 1, 5, 47, team=0)
+        add_agent(sim, 1, 5, 95, team=0)   # BASE_B セル
         events = sim._update_cores()
         assert len(events) > 0
 
@@ -461,7 +461,7 @@ class TestUpdateCores:
         """コア破壊ステップで勝利メッセージが返る"""
         sim = make_sim(with_bases=True)
         sim.cores[1].hp = DPS              # あと 1 撃で破壊
-        add_agent(sim, 1, 5, 47, team=0)
+        add_agent(sim, 1, 5, 95, team=0)   # BASE_B セル
         events = sim._update_cores()
         assert sim.cores[1].destroyed
         assert any("勝利" in e for e in events)
@@ -469,7 +469,7 @@ class TestUpdateCores:
     def test_no_victory_event_when_core_survives(self):
         """コアが生き残っている間は勝利メッセージが出ない"""
         sim = make_sim(with_bases=True)
-        add_agent(sim, 1, 5, 47, team=0)   # 1 発では破壊されない初期 HP
+        add_agent(sim, 1, 5, 95, team=0)   # BASE_B セル、1 発では破壊されない初期 HP
         events = sim._update_cores()
         assert not any("勝利" in e for e in events)
 

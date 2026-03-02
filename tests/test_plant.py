@@ -14,6 +14,7 @@ import pytest
 from simulation import (
     Plant, Map, Agent, Simulation,
     PLANT_RADIUS_C, CELL_SIZE_M,
+    MAP_W, MAP_H,
     create_map,
 )
 
@@ -27,7 +28,7 @@ def make_plant(plant_id=1, x=5, y=25, radius=PLANT_RADIUS_C) -> Plant:
 
 def make_sim(plant: Plant) -> Simulation:
     """プラント1個を持つ最小 Simulation（マップは全 EMPTY）"""
-    return Simulation(Map(10, 50), plants=[plant])
+    return Simulation(Map(MAP_W, MAP_H), plants=[plant])
 
 
 def add_agent(sim: Simulation, agent_id: int, x: int, y: int, team: int) -> Agent:
@@ -69,7 +70,7 @@ class TestPlantInitial:
 # Plant.is_in_range()
 # ─────────────────────────────────────────
 class TestPlantIsInRange:
-    """プラント中心 (5, 25)、半径 3.0 セルで確認"""
+    """プラント中心 (5, 25)、半径 6.0 セルで確認"""
 
     def setup_method(self):
         self.plant = make_plant(x=5, y=25)
@@ -79,36 +80,36 @@ class TestPlantIsInRange:
         assert self.plant.is_in_range(5, 25)
 
     def test_boundary_vertical_top(self):
-        """真上 3セル = 半径ちょうど → 範囲内"""
-        assert self.plant.is_in_range(5, 22)   # dist = 3.0
+        """真上 6セル = 半径ちょうど → 範囲内"""
+        assert self.plant.is_in_range(5, 19)   # dist = 6.0
 
     def test_boundary_vertical_bottom(self):
-        """真下 3セル = 半径ちょうど → 範囲内"""
-        assert self.plant.is_in_range(5, 28)   # dist = 3.0
+        """真下 6セル = 半径ちょうど → 範囲内"""
+        assert self.plant.is_in_range(5, 31)   # dist = 6.0
 
     def test_boundary_horizontal_right(self):
-        """真右 3セル → 範囲内"""
-        assert self.plant.is_in_range(8, 25)   # dist = 3.0
+        """真右 6セル → 範囲内"""
+        assert self.plant.is_in_range(11, 25)   # dist = 6.0
 
     def test_boundary_horizontal_left(self):
-        """真左 3セル → 範囲内"""
-        assert self.plant.is_in_range(2, 25)   # dist = 3.0
+        """真左 6セル → 範囲内"""
+        assert self.plant.is_in_range(-1, 25)   # dist = 6.0
 
     def test_just_outside_vertical(self):
-        """真上 4セル → 範囲外"""
-        assert not self.plant.is_in_range(5, 21)  # dist = 4.0
+        """真上 7セル → 範囲外"""
+        assert not self.plant.is_in_range(5, 18)  # dist = 7.0
 
     def test_just_outside_horizontal(self):
-        """真右 4セル → 範囲外"""
-        assert not self.plant.is_in_range(9, 25)  # dist = 4.0
+        """真右 7セル → 範囲外"""
+        assert not self.plant.is_in_range(12, 25)  # dist = 7.0
 
     def test_diagonal_inside(self):
         """斜め (2,2) → dist = √8 ≈ 2.83 → 範囲内"""
         assert self.plant.is_in_range(7, 27)
 
     def test_diagonal_outside(self):
-        """斜め (3,1) → dist = √10 ≈ 3.16 → 範囲外"""
-        assert not self.plant.is_in_range(8, 26)
+        """斜め (7,1) → dist = √50 ≈ 7.07 → 範囲外"""
+        assert not self.plant.is_in_range(12, 26)
 
     def test_far_away(self):
         """遠距離は範囲外"""
@@ -312,7 +313,7 @@ class TestPlantSpawnPoints:
     """プラント再出撃地点の単体テスト"""
 
     def setup_method(self):
-        self.plant = make_plant(x=5, y=25)   # radius=3.0
+        self.plant = make_plant(x=5, y=25)   # radius=6.0
 
     def test_returns_two_points_per_team(self):
         """各チームに2か所の再出撃地点を返す"""
@@ -359,7 +360,7 @@ class TestPlantSpawnPoints:
         """複数プラントが独立して更新される"""
         plant1 = make_plant(plant_id=1, x=5, y=14)
         plant2 = make_plant(plant_id=2, x=5, y=35)
-        sim = Simulation(Map(10, 50), plants=[plant1, plant2])
+        sim = Simulation(Map(MAP_W, MAP_H), plants=[plant1, plant2])
         # plant1 にはチームA、plant2 にはチームB を配置
         sim.add_agent(Agent(1, 5, 14, team=0))
         sim.add_agent(Agent(2, 5, 35, team=1))

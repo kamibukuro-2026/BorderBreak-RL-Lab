@@ -7,8 +7,8 @@ Agent クラスの単体テスト
   - Agent.role — ロール属性（デフォルト=Role.ASSAULT）
   - Agent.move() および move_up/down/left/right()
   - Agent.dist_cells() — ユークリッド距離
-  - Agent.in_search_range() — 索敵範囲（SEARCH_RANGE_C = 8.0）
-  - Agent.in_lockon_range() — ロックオン範囲（LOCKON_RANGE_C = 6.0）
+  - Agent.in_search_range() — 索敵範囲（SEARCH_RANGE_C = 16.0）
+  - Agent.in_lockon_range() — ロックオン範囲（LOCKON_RANGE_C = 12.0）
 """
 import math
 import pytest
@@ -242,13 +242,13 @@ class TestDistCells:
 # Agent.in_search_range()
 # ─────────────────────────────────────────
 class TestInSearchRange:
-    """SEARCH_RANGE_C = 8.0"""
+    """SEARCH_RANGE_C = 16.0"""
 
     def _pair(self, x1, y1, x2, y2):
         return make_agent(x=x1, y=y1), make_agent(x=x2, y=y2)
 
     def test_search_range_constant(self):
-        assert SEARCH_RANGE_C == 8.0
+        assert SEARCH_RANGE_C == 16.0
 
     def test_same_position_in_range(self):
         """同一位置は範囲内"""
@@ -256,13 +256,13 @@ class TestInSearchRange:
         assert a.in_search_range(b)
 
     def test_boundary_exact_in_range(self):
-        """距離ちょうど 8.0 → 範囲内（≤ で判定）"""
-        a, b = self._pair(0, 0, 8, 0)    # dist = 8.0
+        """距離ちょうど 16.0 → 範囲内（≤ で判定）"""
+        a, b = self._pair(0, 0, 16, 0)    # dist = 16.0
         assert a.in_search_range(b)
 
     def test_just_outside_range(self):
-        """距離 9 → 範囲外"""
-        a, b = self._pair(0, 0, 9, 0)    # dist = 9.0
+        """距離 17 → 範囲外"""
+        a, b = self._pair(0, 0, 17, 0)    # dist = 17.0
         assert not a.in_search_range(b)
 
     def test_diagonal_inside(self):
@@ -277,7 +277,7 @@ class TestInSearchRange:
 
     def test_symmetry(self):
         """a→b と b→a の結果は等しい"""
-        a, b = self._pair(0, 0, 6, 0)
+        a, b = self._pair(0, 0, 12, 0)
         assert a.in_search_range(b) == b.in_search_range(a)
 
 
@@ -285,13 +285,13 @@ class TestInSearchRange:
 # Agent.in_lockon_range()
 # ─────────────────────────────────────────
 class TestInLockonRange:
-    """LOCKON_RANGE_C = 6.0"""
+    """LOCKON_RANGE_C = 12.0"""
 
     def _pair(self, x1, y1, x2, y2):
         return make_agent(x=x1, y=y1), make_agent(x=x2, y=y2)
 
     def test_lockon_range_constant(self):
-        assert LOCKON_RANGE_C == 6.0
+        assert LOCKON_RANGE_C == 12.0
 
     def test_same_position_in_lockon(self):
         """同一位置はロックオン範囲内"""
@@ -299,13 +299,13 @@ class TestInLockonRange:
         assert a.in_lockon_range(b)
 
     def test_boundary_exact_in_lockon(self):
-        """距離ちょうど 6.0 → ロックオン範囲内（≤ で判定）"""
-        a, b = self._pair(0, 0, 6, 0)    # dist = 6.0
+        """距離ちょうど 12.0 → ロックオン範囲内（≤ で判定）"""
+        a, b = self._pair(0, 0, 12, 0)    # dist = 12.0
         assert a.in_lockon_range(b)
 
     def test_just_outside_lockon(self):
-        """距離 7 → ロックオン範囲外"""
-        a, b = self._pair(0, 0, 7, 0)    # dist = 7.0
+        """距離 13 → ロックオン範囲外"""
+        a, b = self._pair(0, 0, 13, 0)    # dist = 13.0
         assert not a.in_lockon_range(b)
 
     def test_diagonal_inside_lockon(self):
@@ -315,25 +315,25 @@ class TestInLockonRange:
 
     def test_lockon_implies_search(self):
         """ロックオン範囲内ならば必ず索敵範囲内（ロックオン ⊆ 索敵）"""
-        a, b = self._pair(0, 0, 5, 0)    # dist = 5.0, lockon=True
+        a, b = self._pair(0, 0, 10, 0)    # dist = 10.0, lockon=True
         assert a.in_lockon_range(b)
         assert a.in_search_range(b)
 
     def test_search_not_lockon(self):
         """索敵範囲内でもロックオン範囲外になる距離が存在する"""
-        a, b = self._pair(0, 0, 7, 0)    # dist = 7.0: search=True(7≤8), lockon=False(7>6)
+        a, b = self._pair(0, 0, 14, 0)    # dist = 14.0: search=True(14≤16), lockon=False(14>12)
         assert a.in_search_range(b)
         assert not a.in_lockon_range(b)
 
     def test_outside_both_ranges(self):
         """索敵範囲外ならロックオン範囲外でもある"""
-        a, b = self._pair(0, 0, 9, 0)    # dist = 9.0
+        a, b = self._pair(0, 0, 17, 0)    # dist = 17.0
         assert not a.in_search_range(b)
         assert not a.in_lockon_range(b)
 
     def test_symmetry(self):
         """a→b と b→a の結果は等しい"""
-        a, b = self._pair(0, 0, 5, 0)
+        a, b = self._pair(0, 0, 10, 0)
         assert a.in_lockon_range(b) == b.in_lockon_range(a)
 
 

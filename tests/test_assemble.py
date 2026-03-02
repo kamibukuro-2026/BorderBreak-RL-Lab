@@ -160,22 +160,22 @@ class TestAssembleAgentParamsDps:
 class TestAssembleAgentParamsSearchRange:
 
     def test_search_range_c_from_sakuteki(self):
-        """sakuteki=80.0m → search_range_c = 8.0 (80/10)"""
+        """sakuteki=80.0m → search_range_c = 16.0 (80/5)"""
         result = make_calc_result(sakuteki_m=80.0)
         params = assemble_agent_params(result)
-        assert params["search_range_c"] == pytest.approx(8.0)
+        assert params["search_range_c"] == pytest.approx(16.0)
 
     def test_search_range_c_scaled_by_cell_size(self):
-        """sakuteki=120.0m → search_range_c = 12.0"""
+        """sakuteki=120.0m → search_range_c = 24.0"""
         result = make_calc_result(sakuteki_m=120.0)
         params = assemble_agent_params(result)
-        assert params["search_range_c"] == pytest.approx(12.0)
+        assert params["search_range_c"] == pytest.approx(24.0)
 
     def test_search_range_c_small_value(self):
-        """sakuteki=50.0m → search_range_c = 5.0"""
+        """sakuteki=50.0m → search_range_c = 10.0"""
         result = make_calc_result(sakuteki_m=50.0)
         params = assemble_agent_params(result)
-        assert params["search_range_c"] == pytest.approx(5.0)
+        assert params["search_range_c"] == pytest.approx(10.0)
 
     def test_missing_head_uses_default_search_range(self):
         """draw.head がない → default_search_range_c を使う"""
@@ -205,22 +205,22 @@ class TestAssembleAgentParamsSearchRange:
 class TestAssembleAgentParamsLockonRange:
 
     def test_lockon_range_c_from_lockon_param(self):
-        """lockOn=60.0m → lockon_range_c = 6.0 (60/10)"""
+        """lockOn=60.0m → lockon_range_c = 12.0 (60/5)"""
         result = make_calc_result(lockon_m=60.0)
         params = assemble_agent_params(result)
-        assert params["lockon_range_c"] == pytest.approx(6.0)
+        assert params["lockon_range_c"] == pytest.approx(12.0)
 
     def test_lockon_range_c_scaled_by_cell_size(self):
-        """lockOn=90.0m → lockon_range_c = 9.0"""
+        """lockOn=90.0m → lockon_range_c = 18.0"""
         result = make_calc_result(lockon_m=90.0)
         params = assemble_agent_params(result)
-        assert params["lockon_range_c"] == pytest.approx(9.0)
+        assert params["lockon_range_c"] == pytest.approx(18.0)
 
     def test_lockon_range_c_small_value(self):
-        """lockOn=40.0m → lockon_range_c = 4.0"""
+        """lockOn=40.0m → lockon_range_c = 8.0"""
         result = make_calc_result(lockon_m=40.0)
         params = assemble_agent_params(result)
-        assert params["lockon_range_c"] == pytest.approx(4.0)
+        assert params["lockon_range_c"] == pytest.approx(8.0)
 
     def test_missing_lockon_uses_default(self):
         """lockOn フィールドなし → default_lockon_range_c を使う"""
@@ -243,34 +243,34 @@ class TestAssembleAgentParamsLockonRange:
 class TestAssembleAgentParamsCellsPerStep:
 
     def test_cells_per_step_from_walk_speed(self):
-        """walk=21.9m/s → round(21.9/10)=2 → cells_per_step=2"""
+        """walk=21.9m/s → round(21.9/5)=4 → cells_per_step=4"""
         result = make_calc_result(walk_mps=21.9)
         params = assemble_agent_params(result)
-        assert params["cells_per_step"] == 2
+        assert params["cells_per_step"] == 4
 
     def test_cells_per_step_high_speed(self):
-        """walk=31.5m/s → round(31.5/10)=3 → cells_per_step=3"""
+        """walk=31.5m/s → round(31.5/5)=6 → cells_per_step=6"""
         result = make_calc_result(walk_mps=31.5)
+        params = assemble_agent_params(result)
+        assert params["cells_per_step"] == 6
+
+    def test_cells_per_step_low_speed(self):
+        """walk=14.0m/s → round(14.0/5)=3 → cells_per_step=3"""
+        result = make_calc_result(walk_mps=14.0)
         params = assemble_agent_params(result)
         assert params["cells_per_step"] == 3
 
-    def test_cells_per_step_low_speed(self):
-        """walk=14.0m/s → round(14.0/10)=1 → cells_per_step=1"""
-        result = make_calc_result(walk_mps=14.0)
-        params = assemble_agent_params(result)
-        assert params["cells_per_step"] == 1
-
     def test_cells_per_step_very_slow_minimum_is_1(self):
-        """walk=3.0m/s → round(0.3)=0 → max(1,0)=1 → cells_per_step=1（最低値）"""
+        """walk=3.0m/s → round(0.6)=1 → max(1,1)=1 → cells_per_step=1（最低値）"""
         result = make_calc_result(walk_mps=3.0)
         params = assemble_agent_params(result)
         assert params["cells_per_step"] == 1
 
     def test_cells_per_step_very_fast(self):
-        """walk=45.0m/s → round(4.5)=4 → cells_per_step=4"""
+        """walk=45.0m/s → round(45.0/5)=9 → cells_per_step=9"""
         result = make_calc_result(walk_mps=45.0)
         params = assemble_agent_params(result)
-        assert params["cells_per_step"] == 4
+        assert params["cells_per_step"] == 9
 
     def test_missing_base_walk_uses_default(self):
         """base.walk がない → default_cells_per_step を使う"""
@@ -528,22 +528,22 @@ class TestAssembleWalkDashCells:
         assert params["walk_cells_per_step"] == 1
 
     def test_dash_cells_c_minus_rank(self):
-        """dash=21.9m/s → round(2.19)=2 → dash_cells_per_step=2（C- ランク相当）"""
+        """dash=21.9m/s → round(21.9/5)=4 → dash_cells_per_step=4（C- ランク相当）"""
         result = make_calc_result_with_dash(walk_mps=6.75, dash_mps=21.9)
         params = assemble_agent_params(result)
-        assert params["dash_cells_per_step"] == 2
+        assert params["dash_cells_per_step"] == 4
 
     def test_dash_cells_s_rank(self):
-        """dash=28.5m/s → round(2.85)=3 → dash_cells_per_step=3（S ランク相当）"""
+        """dash=28.5m/s → round(28.5/5)=6 → dash_cells_per_step=6（S ランク相当）"""
         result = make_calc_result_with_dash(walk_mps=10.125, dash_mps=28.5)
         params = assemble_agent_params(result)
-        assert params["dash_cells_per_step"] == 3
+        assert params["dash_cells_per_step"] == 6
 
     def test_missing_dash_falls_back_to_cells_per_step(self):
         """base.dash がない → cells_per_step の値を使う"""
         result = make_calc_result(walk_mps=21.9)  # dash なし
         params = assemble_agent_params(result)
-        # cells_per_step = round(21.9/10) = 2
+        # cells_per_step = round(21.9/5) = 4
         assert params["dash_cells_per_step"] == params["cells_per_step"]
 
     def test_missing_walk_uses_default_walk_cells(self):

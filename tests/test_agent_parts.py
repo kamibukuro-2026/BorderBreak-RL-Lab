@@ -169,10 +169,10 @@ class TestInSearchRangeUsesInstanceVar:
         assert a.in_search_range(b)  # 10.0 >= 9.0
 
     def test_default_range_cannot_detect_far_agent(self):
-        """デフォルト(8.0)では距離9.0の敵を検知できない"""
-        a = make_agent(agent_id=1, x=0, y=0, team=0)  # search_range_c=8.0
-        b = make_agent(agent_id=2, x=9, y=0, team=1)
-        assert not a.in_search_range(b)  # 8.0 < 9.0
+        """デフォルト(16.0)では距離17.0の敵を検知できない"""
+        a = make_agent(agent_id=1, x=0, y=0, team=0)  # search_range_c=16.0
+        b = make_agent(agent_id=2, x=17, y=0, team=1)
+        assert not a.in_search_range(b)  # 16.0 < 17.0
 
     def test_narrow_range_cannot_detect_within_default(self):
         """search_range_c=5.0 では距離6.0の敵を検知できない"""
@@ -188,10 +188,10 @@ class TestInSearchRangeUsesInstanceVar:
 
     def test_search_range_does_not_affect_other_agent(self):
         """索敵者の search_range_c は相手の範囲に影響しない"""
-        # a は広い search_range_c=10.0, b はデフォルト
-        a = make_agent(agent_id=1, x=0, y=0, team=0, search_range_c=10.0)
-        b = make_agent(agent_id=2, x=9, y=0, team=1)
-        # a から b は検知できるが、b から a は距離9.0でデフォルト8.0では検知できない
+        # a は広い search_range_c=18.0, b はデフォルト(16.0)
+        a = make_agent(agent_id=1, x=0, y=0, team=0, search_range_c=18.0)
+        b = make_agent(agent_id=2, x=17, y=0, team=1)
+        # a から b は検知できるが、b から a は距離17.0でデフォルト16.0では検知できない
         assert a.in_search_range(b)
         assert not b.in_search_range(a)
 
@@ -207,10 +207,10 @@ class TestInLockonRangeUsesInstanceVar:
         assert a.in_lockon_range(b)  # 7.0 >= 7.0
 
     def test_default_range_cannot_lockon_far_agent(self):
-        """デフォルト(6.0)では距離7.0の敵をロックオンできない"""
-        a = make_agent(agent_id=1, x=0, y=0, team=0)  # lockon_range_c=6.0
-        b = make_agent(agent_id=2, x=7, y=0, team=1)
-        assert not a.in_lockon_range(b)  # 6.0 < 7.0
+        """デフォルト(12.0)では距離13.0の敵をロックオンできない"""
+        a = make_agent(agent_id=1, x=0, y=0, team=0)  # lockon_range_c=12.0
+        b = make_agent(agent_id=2, x=13, y=0, team=1)
+        assert not a.in_lockon_range(b)  # 12.0 < 13.0
 
     def test_narrow_lockon_cannot_reach_within_default(self):
         """lockon_range_c=4.0 では距離5.0の敵をロックオンできない"""
@@ -226,8 +226,9 @@ class TestInLockonRangeUsesInstanceVar:
 
     def test_lockon_range_does_not_affect_other_agent(self):
         """ロックオン側の lockon_range_c は相手の範囲に影響しない"""
-        a = make_agent(agent_id=1, x=0, y=0, team=0, lockon_range_c=7.0)
-        b = make_agent(agent_id=2, x=7, y=0, team=1)
+        a = make_agent(agent_id=1, x=0, y=0, team=0, lockon_range_c=14.0)
+        b = make_agent(agent_id=2, x=13, y=0, team=1)
+        # a から b は検知できるが（14.0 ≥ 13.0）、b から a は距離13.0でデフォルト12.0では検知できない
         assert a.in_lockon_range(b)
         assert not b.in_lockon_range(a)
 
