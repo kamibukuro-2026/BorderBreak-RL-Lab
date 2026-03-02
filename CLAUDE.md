@@ -24,14 +24,14 @@
 
 | 項目 | 値 |
 |---|---|
-| グリッド単位 | 1 マス = 10m × 10m |
+| グリッド単位 | 1 マス = 5m × 5m |
 | マップサイズ | 縦 500m × 横 100m |
-| グリッドサイズ | 50 × 10 セル（`MAP_H=50`, `MAP_W=10`） |
+| グリッドサイズ | 100 × 20 セル（`MAP_H=100`, `MAP_W=20`） |
 | 向き | 縦型：上端に Base A（チームA）、下端に Base B（チームB） |
-| ベース奥行き | 3 セル（30m）。`BASE_DEPTH = 3` |
+| ベース奥行き | 6 セル（30m）。`BASE_DEPTH = 6` |
 | プラント数 | 3 個（`NUM_PLANTS = 3`） |
-| プラント配置 | ベース間（y=3〜46）を等分割<br>→ y=14（140m）, y=25（250m）, y=35（350m）、すべて x=5（横中央） |
-| プラント占拠範囲 | 半径 30m = 3 セル（`PLANT_RADIUS_C = 3.0`） |
+| プラント配置 | ベース間（y=6〜93）を等分割<br>→ y=28（140m）, y=50（250m）, y=71（355m）、すべて x=10（横中央） |
+| プラント占拠範囲 | 半径 30m = 6 セル（`PLANT_RADIUS_C = 6.0`） |
 
 ---
 
@@ -113,24 +113,24 @@ simulation.py       → constants, game_types, brain, agent, map_gen
 ### 定数（constants.py）
 
 ```python
-CELL_SIZE_M    = 10       # 1マス = 10m
-MAP_W, MAP_H   = 10, 50
-BASE_DEPTH     = 3
+CELL_SIZE_M    = 5        # 1マス = 5m
+MAP_W, MAP_H   = 20, 100
+BASE_DEPTH     = 6
 NUM_PLANTS     = 3
 PLANT_RADIUS_M = 30
-PLANT_RADIUS_C = 3.0      # PLANT_RADIUS_M / CELL_SIZE_M
+PLANT_RADIUS_C = 6.0      # PLANT_RADIUS_M / CELL_SIZE_M
 
 # 戦闘定数（1ステップ = 1秒）
 AGENT_HP          = 10_000
 DPS               = 3_000   # 射撃成功時のダメージ/ステップ
-HIT_RATE          = 0.80
+HIT_RATE          = 0.64    # ロックオン内実効 ≈ 80%（×LOCKON_BONUS=1.25）
 SEARCH_RANGE_M    = 80
-SEARCH_RANGE_C    = 8.0     # SEARCH_RANGE_M / CELL_SIZE_M
+SEARCH_RANGE_C    = 16.0    # SEARCH_RANGE_M / CELL_SIZE_M
 LOCKON_RANGE_M    = 60
-LOCKON_RANGE_C    = 6.0     # LOCKON_RANGE_M / CELL_SIZE_M
+LOCKON_RANGE_C    = 12.0    # LOCKON_RANGE_M / CELL_SIZE_M
 RESPAWN_STEPS     = 10
 MOVE_SPEED_MPS    = 21.9
-CELLS_PER_STEP    = 2       # max(1, round(21.9/10))
+CELLS_PER_STEP    = 4       # max(1, round(21.9/5))
 MATCH_TIME_STEPS  = 600     # 試合制限時間（10分 × 60秒/ステップ）
 DETECTION_STEPS   = 3       # 被索敵状態になるまでの連続索敵ステップ数
 
@@ -146,8 +146,8 @@ CORE_DMG_PER_KILL = CORE_HP / 160   # ≈ 1,666.67（撃破リスポーン時ペ
 | `EMPTY` | 通路 |
 | `OBSTACLE` | 障害物 |
 | `PLANT` | プラント中心セル |
-| `BASE_A` | チームA ベース（上端 y=0〜2） |
-| `BASE_B` | チームB ベース（下端 y=47〜49） |
+| `BASE_A` | チームA ベース（上端 y=0〜5） |
+| `BASE_B` | チームB ベース（下端 y=94〜99） |
 
 ### `Plant`（dataclass）— game_types.py
 
@@ -168,7 +168,7 @@ CORE_DMG_PER_KILL = CORE_HP / 160   # ≈ 1,666.67（撃破リスポーン時ペ
 | A（ベース上端） | `plant.y - (int(radius) + 1)` | `(plant.x-1, spawn_y)` | `(plant.x+1, spawn_y)` |
 | B（ベース下端） | `plant.y + (int(radius) + 1)` | `(plant.x-1, spawn_y)` | `(plant.x+1, spawn_y)` |
 
-radius=3 の場合、spawn_y は plant.y ∓ 4（チームA/B）。
+radius=6 の場合、spawn_y は plant.y ∓ 7（チームA/B）。
 
 ### `Core`（dataclass）— game_types.py
 
@@ -235,7 +235,7 @@ ACTION_DELTA: dict[Action, tuple[int, int]]  # (dx, dy)
 - `in_search_range(other)` → `dist_cells <= SEARCH_RANGE_C`
 - `in_lockon_range(other)` → `dist_cells <= LOCKON_RANGE_C`
 - `pos` プロパティ → `(x, y)`
-- `pos_m` プロパティ → メートル座標 `(x*10, y*10)`
+- `pos_m` プロパティ → メートル座標 `(x*5, y*5)`
 
 ### `Simulation` — simulation.py
 
@@ -268,7 +268,7 @@ ACTION_DELTA: dict[Action, tuple[int, int]]  # (dx, dy)
 #### `create_map() -> tuple[Map, list[Plant]]`
 
 - Base A/B をグリッドに設定
-- `np.linspace(3, 46, 5)[1:-1]` でプラント y 座標を等分割計算
+- `np.linspace(6, 93, 5)[1:-1]` でプラント y 座標を等分割計算
 
 #### `get_base_spawn_points(team: int) -> list[tuple[int, int]]`
 
@@ -276,8 +276,8 @@ ACTION_DELTA: dict[Action, tuple[int, int]]  # (dx, dy)
 
 | チーム | x | y |
 |---|---|---|
-| A（team=0） | 1, MAP_W-2（= 1, 8） | BASE_DEPTH // 2（= 1） |
-| B（team=1） | 1, MAP_W-2（= 1, 8） | MAP_H - BASE_DEPTH // 2 - 1（= 48） |
+| A（team=0） | 1, MAP_W-2（= 1, 18） | BASE_DEPTH // 2（= 3） |
+| B（team=1） | 1, MAP_W-2（= 1, 18） | MAP_H - BASE_DEPTH // 2 - 1（= 96） |
 
 ---
 
@@ -306,10 +306,10 @@ capture_gauge = clamp(capture_gauge + net, -10, +10)
 | BR の HP | 10,000 |
 | 射撃ダメージ/ステップ | 3,000（DPS） |
 | 命中率 | 80%（HIT_RATE） |
-| 索敵範囲 | 80m = 8セル（SEARCH_RANGE_C） |
-| ロックオン範囲 | 60m = 6セル（LOCKON_RANGE_C） |
+| 索敵範囲 | 80m = 16セル（SEARCH_RANGE_C） |
+| ロックオン範囲 | 60m = 12セル（LOCKON_RANGE_C） |
 | リスポーン待機 | 10ステップ（RESPAWN_STEPS） |
-| 移動速度 | 21.9m/s ≈ 2セル/ステップ（CELLS_PER_STEP） |
+| 移動速度 | 21.9m/s ≈ 4セル/ステップ（CELLS_PER_STEP） |
 
 **同時解決**: `pending_damage` dict で全員分の射撃を計算してから一括適用（相打ちあり）
 
@@ -342,11 +342,11 @@ capture_gauge = clamp(capture_gauge + net, -10, +10)
 
 ### プラント再出撃地点
 
-プラント円（半径3セル）から1グリッド外側（自軍ベース方向）、中心を挟んで左右対称。
+プラント円（半径6セル）から1グリッド外側（自軍ベース方向）、中心を挟んで左右対称。
 
 ### ベース再出撃地点
 
-ベース左端(x=0)から1格(x=1)と右端(x=9)から1格(x=8)の2か所。y はベース中央。
+ベース左端(x=0)から1格(x=1)と右端(x=19)から1格(x=18)の2か所。y はベース中央。
 
 ---
 
@@ -408,6 +408,7 @@ capture_gauge = clamp(capture_gauge + net, -10, +10)
 - [x] T-1: `max_hp` の可変化（body: armor → `実効HP = 基準HP / armor.param`）
 - [x] T-2: `hit_rate` の可変化（head: aim → 決定論的 DPS 分率モデルに移行、`_calc_hit_fraction()` 実装）
 - [x] T-3: ブースト巡航システムの実装（boost_max / boost_regen / walk_cells_per_step / dash_cells_per_step / is_cruising、assemble_agent_params に4キー追加）
+- [x] T-3.5: セルサイズ変更（CELL_SIZE_M: 10m → 5m、MAP 100×20 セル、全定数・テスト更新）
 - [x] parts_normalized.json の追加（496 パーツ）
 - [x] ブーストテスト 70 件（test_agent_boost / test_simulation_boost / test_assemble 拡張）
 
@@ -439,18 +440,13 @@ capture_gauge = clamp(capture_gauge + net, -10, +10)
 - `assemble_agent_params()` に 4 キー追加（walk_cells_per_step / dash_cells_per_step / boost_max / boost_regen）
 - `constants.py` に 3 定数追加（CRUISE_CONSUME_PER_STEP=13.8 / CRUISE_START_COST=12.0 / BOOST_REGEN_PER_STEP=15.0）
 
-#### T-3.5. セルサイズの変更（CELL_SIZE_M: 10m → 5m）
-- **現状**: 1セル = 10m のため、walk と cruise 速度がいずれも 1 セル/step に丸まり速度差が生じない
-- **問題**: S ランク leg の dash=28.5m/s を `round(28.5/10) = 3`、walk=10.125 を `round(10.125/10) = 1`
-  だが、cruise=dash×0.6=17.1m/s は `round(17.1/10) = 2` となり walk と差別化はできているものの精度が不足
-- **目標**: 1セル = 5m に変更し、`dash_cells_per_step` の分解能を向上させる
-  - 例: dash=21.9m/s → `round(21.9/5) = 4`、walk=6.75 → `round(6.75/5) = 1`（walk/dash で 1:4 の差）
-- **影響範囲**:
-  - `constants.py`: `CELL_SIZE_M=5`, `MAP_W=20`, `MAP_H=100`, `BASE_DEPTH=6`, `PLANT_RADIUS_C=6.0`
-  - `assemble.py`: ローカル定数 `_CELL_SIZE_M = 5`（SEARCH/LOCKON範囲のセル換算も変わる）
-  - `map_gen.py`: プラント y 座標の等分割計算も自動更新（`np.linspace` ベースなので定数変更で連動）
-  - テスト群: マップ座標を使うテストは座標の再調整が必要
-- **前提**: T-3 実装済み（✅ 完了）
+#### T-3.5. セルサイズの変更（CELL_SIZE_M: 10m → 5m）✅ 実装済み
+- 1セル = 5m に変更し、walk/dash の速度比が 1:2 程度から 1:4 程度に向上
+  - 例: dash=21.9m/s → `round(21.9/5) = 4`、walk=6.75m/s → `round(6.75/5) = 1`（walk/dash で 1:4 の差）
+- 変更済み定数: `CELL_SIZE_M=5`, `MAP_W=20`, `MAP_H=100`, `BASE_DEPTH=6`, `PLANT_RADIUS_C=6.0`,
+  `SEARCH_RANGE_C=16.0`, `LOCKON_RANGE_C=12.0`, `CELLS_PER_STEP=4`, `HIT_RATE=0.64`
+- assemble.py ローカル定数（`_CELL_SIZE_M=5` 等）も更新済み
+- テスト群の座標・コメント・docstring を全更新（636 件全件グリーン）
 
 ### フェーズ2: 武器の射撃サイクル実装（優先度：中）
 
@@ -516,7 +512,7 @@ capture_gauge = clamp(capture_gauge + net, -10, +10)
 T-1（armor→max_hp）       ✅ 実装済み
 T-2（aim→hit_rate）       ✅ 実装済み
 T-3（ブースト巡航）        ✅ 実装済み
-T-3.5（セルサイズ変更）    T-3 の後（独立）
+T-3.5（セルサイズ変更）    ✅ 実装済み
 T-4（リロード）            独立 ← T-5, T-7 の前提
 T-5（reloadRate反映）     T-4 の後
 T-6（precision→hit_rate） T-2 の後

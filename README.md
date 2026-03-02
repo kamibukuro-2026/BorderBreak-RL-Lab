@@ -51,11 +51,11 @@ BASE B（チームB）
 
 | 項目 | 値 |
 |---|---|
-| グリッド単位 | 1 マス = 10m × 10m |
-| マップサイズ | 縦 500m × 横 100m（50 × 10 セル） |
-| ベース奥行き | 30m（3 セル） |
-| プラント数 | 3 個（y = 140m / 250m / 350m、横中央） |
-| プラント占拠範囲 | 半径 30m（3 セル） |
+| グリッド単位 | 1 マス = 5m × 5m |
+| マップサイズ | 縦 500m × 横 100m（100 × 20 セル） |
+| ベース奥行き | 30m（6 セル） |
+| プラント数 | 3 個（y = 140m / 250m / 355m、横中央） |
+| プラント占拠範囲 | 半径 30m（6 セル） |
 
 ---
 
@@ -65,10 +65,10 @@ BASE B（チームB）
 |---|---|
 | BR HP | 10,000 |
 | DPS（ダメージ/ステップ） | 3,000 |
-| 命中率 | 80% |
-| 索敵範囲 | 80m（8 セル） |
-| ロックオン範囲 | 60m（6 セル） |
-| 移動速度 | 21.9 m/s ≈ 2 セル/ステップ |
+| 命中率 | 64%（ロックオン内実効 ≈ 80%） |
+| 索敵範囲 | 80m（16 セル） |
+| ロックオン範囲 | 60m（12 セル） |
+| 移動速度 | 21.9 m/s ≈ 4 セル/ステップ |
 | リスポーン待機 | 10 ステップ |
 | コア HP | 266,666（160 機撃破でゼロ） |
 | 撃破ペナルティ | 約 1,666.67（自チームコアへ） |
@@ -109,7 +109,12 @@ python -m pytest tests/ -v
 
 ```
 BorderBreakシミュレーター/
-├── simulation.py                     # メイン実装（シミュレーターの全ロジック）
+├── constants.py                      # 全ゲーム定数（CELL_SIZE_M, MAP_W, DPS, CORE_HP など）
+├── game_types.py                     # CellType / Action / Role / Plant / Core / Map
+├── brain.py                          # Brain / GreedyBaseAttackBrain / PlantCaptureBrain / AggressiveCombatBrain
+├── agent.py                          # Agent クラス
+├── map_gen.py                        # create_map() / get_base_spawn_points()
+├── simulation.py                     # Simulation クラス（re-import ハブ）
 ├── catalog.py                        # パーツ・武器データの読込とインデックス化
 ├── assemble.py                       # 機体アセンブル計算の高レベル API
 ├── bb_base_and_brand.py              # ベースパラメータ集計・セットボーナス計算
@@ -248,7 +253,7 @@ weapon = calc_full(catalog, LoadoutKeys("a","a","a","a"), weapons={"main": ref})
 | T-1 `max_hp` の可変化 | ✅ 完了 | body の `armor` ランクを BR の最大 HP に反映 |
 | T-2 `hit_rate` の可変化 | ✅ 完了 | head の `aim` ランクを命中率に反映（決定論的 DPS 分率モデル） |
 | T-3 ブースト巡航システム | ✅ 完了 | walk/dash 2段階速度 + boost ゲージ管理の実装 |
-| T-3.5 セルサイズ変更 | 未着手 | `CELL_SIZE_M: 10m → 5m` — walk/dash の速度分解能を向上 |
+| T-3.5 セルサイズ変更 | ✅ 完了 | `CELL_SIZE_M: 10m → 5m` — walk/dash の速度比が 1:4 程度に向上 |
 
 ### フェーズ2: 武器の射撃サイクル実装（優先度：中）
 
