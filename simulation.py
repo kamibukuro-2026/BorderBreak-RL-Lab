@@ -641,25 +641,27 @@ class Simulation:
                 agent.is_cruising = False
 
     # ── シミュレーション実行（アニメーション） ──────────────
-    def run(self, max_steps: int = 60, step_delay: float = 0.15,
-            verbose: bool = True):
+    def run(self, max_steps: int = 60, step_delay: float = 0.0,
+            verbose: bool = False):
         """
         全エージェントを自律移動させ、リアルタイムで描画する。
 
         Parameters
         ----------
         max_steps  : 最大ステップ数
-        step_delay : 1ステップあたりの表示時間（秒）。0 にすると描画スキップ。
-        verbose    : コンソールへの詳細ログ出力
+        step_delay : 1ステップあたりの表示時間（秒）。0 にすると GUI 非表示（デフォルト）。
+        verbose    : コンソールへの詳細ログ出力。False にすると全 print を抑制（デフォルト）。
         """
-        print(f"=== シミュレーション開始  max_steps={max_steps} ===\n")
+        if verbose:
+            print(f"=== シミュレーション開始  max_steps={max_steps} ===\n")
 
         # プラント進入状態の追跡（agent_id → プラントIDセット）
         prev_plant_ids: dict[int, set[int]] = {a.agent_id: set() for a in self.agents}
 
-        plt.ion()
-        fig, ax = plt.subplots(figsize=(7, 22))
-        plt.tight_layout()
+        if step_delay > 0:
+            plt.ion()
+            fig, ax = plt.subplots(figsize=(7, 22))
+            plt.tight_layout()
 
         try:
             for _ in range(max_steps):
@@ -702,6 +704,13 @@ class Simulation:
                     'alive_b':   sum(1 for a in self.agents if a.alive and a.team == 1),
                     **{f'p{p.plant_id}_owner': p.owner          for p in self.plants},
                     **{f'p{p.plant_id}_gauge': round(p.capture_gauge, 1) for p in self.plants},
+                    # ── リプレイ用エージェント状態 ──────────────────────────
+                    **{f'a{a.agent_id}_x':       a.x                        for a in self.agents},
+                    **{f'a{a.agent_id}_y':       a.y                        for a in self.agents},
+                    **{f'a{a.agent_id}_alive':   int(a.alive)               for a in self.agents},
+                    **{f'a{a.agent_id}_hp_pct':  round(a.hp / a.max_hp, 4) for a in self.agents},
+                    **{f'a{a.agent_id}_team':    a.team                     for a in self.agents},
+                    **{f'a{a.agent_id}_respawn': a.respawn_timer            for a in self.agents},
                 })
 
                 # ── ログ出力 ──
@@ -823,11 +832,13 @@ class Simulation:
                     break
 
         finally:
-            plt.ioff()
+            if step_delay > 0:
+                plt.ioff()
 
-        # 最終状態を表示
-        print(f"\n=== シミュレーション終了  step={self.step_count} ===")
-        self.visualize(title=f"最終状態  (step={self.step_count})")
+        if verbose:
+            print(f"\n=== シミュレーション終了  step={self.step_count} ===")
+        if step_delay > 0:
+            self.visualize(title=f"最終状態  (step={self.step_count})")
 
 
     # ── 開発ログ保存 ─────────────────────────────────────
@@ -940,7 +951,7 @@ if __name__ == "__main__":
     sim.visualize(title="初期状態（10 vs 10）")
 
     # 自律移動シミュレーション実行
-    sim.run(max_steps=MATCH_TIME_STEPS, step_delay=0.10)
+    sim.run(max_steps=MATCH_TIME_STEPS, step_delay=0.10, verbose=True)
 
     # 開発ログを CSV に保存
     sim.save_dev_logs()

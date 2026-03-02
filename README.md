@@ -27,11 +27,12 @@ BASE B（チームB）
 ## 特徴
 
 - **リアルタイム可視化** — matplotlib のアニメーションでエージェントの動きをステップごとに描画
+- **リプレイ動画生成** — `replay.py` で `steps_*.csv` から `.gif` / `.mp4` 動画を生成可能
 - **プラグイン可能な Brain** — `Brain.decide()` を実装するだけで新しい戦略を追加可能
 - **同時解決戦闘** — 全エージェントの射撃を一括計算してから適用（相打ちあり）
 - **CSV ログ出力** — ステップ・イベントの2種類のログを自動保存、分析に利用可能
 - **パーツ・武器データ管理** — 実際のゲームデータを基にした機体パラメータ計算（セットボーナス・強化チップ・重量ペナルティ・武器派生パラメータ）
-- **658 件のユニットテスト** — TDD で開発、全件グリーン
+- **668 件のユニットテスト** — TDD で開発、全件グリーン
 
 ---
 
@@ -81,6 +82,10 @@ Python 3.12 以上を推奨します。
 
 ```bash
 pip install numpy matplotlib
+
+# リプレイ動画生成を使う場合（.gif / .mp4）
+pip install pillow
+# .mp4 出力には FFmpeg のシステムインストールも必要
 ```
 
 ---
@@ -96,6 +101,23 @@ python simulation.py
 1. 初期状態の静止画が表示される（ウィンドウを閉じると開始）
 2. アニメーション実行（0.10 秒/ステップ、最大 600 ステップ）
 3. 終了後、`logs/dev/` に CSV ログを保存
+
+### リプレイ動画の生成
+
+```bash
+# GIF 形式（要 Pillow）
+python replay.py logs/dev/steps_YYYYMMDD_HHMMSS.csv sim.gif
+
+# MP4 形式（要 Pillow + FFmpeg）
+python replay.py logs/dev/steps_YYYYMMDD_HHMMSS.csv sim.mp4 --fps 15
+```
+
+Python スクリプトから呼ぶ場合：
+
+```python
+from replay import replay_video
+replay_video('logs/dev/steps_YYYYMMDD_HHMMSS.csv', 'sim.gif', fps=10)
+```
 
 ### テスト実行
 
@@ -115,6 +137,7 @@ BorderBreakシミュレーター/
 ├── agent.py                          # Agent クラス
 ├── map_gen.py                        # create_map() / get_base_spawn_points()
 ├── simulation.py                     # Simulation クラス（re-import ハブ）
+├── replay.py                         # steps_*.csv から動画を生成（.gif / .mp4）
 ├── catalog.py                        # パーツ・武器データの読込とインデックス化
 ├── assemble.py                       # 機体アセンブル計算の高レベル API
 ├── bb_base_and_brand.py              # ベースパラメータ集計・セットボーナス計算
@@ -143,7 +166,7 @@ BorderBreakシミュレーター/
 │   ├── test_plant_capture_brain.py   # PlantCaptureBrain のテスト（25件）
 │   ├── test_aggressive_combat_brain.py  # AggressiveCombatBrain のテスト（18件）
 │   ├── test_detection.py             # 被索敵状態のテスト（20件）
-│   ├── test_simulation.py            # Simulation 戦闘ロジックのテスト（59件）
+│   ├── test_simulation.py            # Simulation 戦闘ロジックのテスト（64件）
 │   ├── test_simulation_boost.py      # Simulation ブースト巡航ロジックのテスト（23件）
 │   ├── test_simulation_reload.py     # Simulation リロードロジックのテスト（11件）
 │   ├── test_agent_parts.py           # Agent per-agent パラメータのテスト（25件）
@@ -153,7 +176,8 @@ BorderBreakシミュレーター/
 │   ├── test_bb_base_and_brand.py     # bb_base_and_brand のテスト（41件）
 │   ├── test_bb_brbonus_calcparam_limit.py  # bb_brbonus_calcparam_limit のテスト（37件）
 │   ├── test_bb_calc_movement.py      # bb_calc_movement のテスト（16件）
-│   └── test_catalog.py               # catalog のテスト（16件）
+│   ├── test_catalog.py               # catalog のテスト（16件）
+│   └── test_replay.py                # replay_video() のテスト（5件）
 └── logs/
     └── dev/                          # 開発用 CSV ログ出力先
         ├── steps_YYYYMMDD_HHMMSS.csv
@@ -209,6 +233,11 @@ class Brain:
 | `alive_a` / `alive_b` | 生存機数 |
 | `p1_owner` 〜 `p3_owner` | プラント所有者（-1=中立 / 0=A / 1=B） |
 | `p1_gauge` 〜 `p3_gauge` | 占拠ゲージ値 |
+| `a{id}_x` / `a{id}_y` | エージェント座標（セル単位）|
+| `a{id}_alive` | 生存状態（1=生存, 0=撃破） |
+| `a{id}_hp_pct` | HP 残量割合（0.0〜1.0） |
+| `a{id}_team` | チーム（0=A, 1=B） |
+| `a{id}_respawn` | リスポーン残時間 |
 
 ### `events_YYYYMMDD_HHMMSS.csv`（1行 = 1イベント）
 

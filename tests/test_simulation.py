@@ -587,3 +587,59 @@ class TestResolveTimeLimit:
         sim = make_sim()
         result = sim._resolve_time_limit()
         assert result is None or result in (0, 1)
+
+
+# ─────────────────────────────────────────
+# _step_log エージェント列
+# ─────────────────────────────────────────
+class TestStepLogAgentColumns:
+    """_step_log にリプレイ用エージェント列が含まれることを確認するテスト"""
+
+    def _make_sim_with_log(self) -> Simulation:
+        """2エージェントを登録して 1 ステップ走らせた Simulation を返す"""
+        import matplotlib
+        matplotlib.use('Agg')
+        sim = make_sim(with_bases=True)
+        add_agent(sim, agent_id=1, x=10, y=10, team=0)
+        add_agent(sim, agent_id=2, x=10, y=90, team=1)
+        sim.run(max_steps=1, step_delay=0, verbose=False)
+        return sim
+
+    def test_step_log_contains_agent_x_column(self):
+        """_step_log に a{id}_x 列が含まれる"""
+        sim = self._make_sim_with_log()
+        assert len(sim._step_log) >= 1
+        row = sim._step_log[0]
+        assert 'a1_x' in row
+        assert 'a2_x' in row
+
+    def test_step_log_contains_all_agent_fields(self):
+        """_step_log に x / y / alive / hp_pct / team / respawn の 6 列が全エージェント分含まれる"""
+        sim = self._make_sim_with_log()
+        row = sim._step_log[0]
+        for aid in (1, 2):
+            for suffix in ('x', 'y', 'alive', 'hp_pct', 'team', 'respawn'):
+                assert f'a{aid}_{suffix}' in row, f"列 a{aid}_{suffix} が見つからない"
+
+    def test_step_log_hp_pct_in_range(self):
+        """hp_pct は 0.0〜1.0 の範囲"""
+        sim = self._make_sim_with_log()
+        for row in sim._step_log:
+            for aid in (1, 2):
+                hp_pct = row[f'a{aid}_hp_pct']
+                assert 0.0 <= hp_pct <= 1.0, f"hp_pct={hp_pct} が範囲外"
+
+    def test_step_log_alive_is_int(self):
+        """alive は 0 または 1 の整数"""
+        sim = self._make_sim_with_log()
+        for row in sim._step_log:
+            for aid in (1, 2):
+                alive = row[f'a{aid}_alive']
+                assert alive in (0, 1), f"alive={alive!r} が 0/1 以外"
+
+    def test_step_log_team_matches_agent_team(self):
+        """team 列がエージェント登録時のチームと一致する"""
+        sim = self._make_sim_with_log()
+        row = sim._step_log[0]
+        assert row['a1_team'] == 0
+        assert row['a2_team'] == 1
