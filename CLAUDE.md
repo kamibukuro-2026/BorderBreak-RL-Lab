@@ -40,6 +40,7 @@
 ```
 BorderBreakシミュレーター/
 ├── simulation.py              # Simulation クラス + re-import ハブ（テスト後方互換維持）
+├── replay.py                  # steps_*.csv からシミュレーション動画を生成（.gif / .mp4）
 ├── constants.py               # 全ゲーム定数（CELL_SIZE_M, MAP_W, DPS, CORE_HP など）
 ├── game_types.py              # Enum・Plant・Core・Map クラス（CellType / Action / Role など）
 ├── brain.py                   # Brain 階層クラス群（Brain / GreedyBaseAttackBrain / PlantCaptureBrain / AggressiveCombatBrain）
@@ -72,7 +73,7 @@ BorderBreakシミュレーター/
 │   ├── test_plant_capture_brain.py         # PlantCaptureBrain のテスト（25件）
 │   ├── test_aggressive_combat_brain.py     # AggressiveCombatBrain のテスト（18件）
 │   ├── test_detection.py                   # 被索敵状態のテスト（20件）
-│   ├── test_simulation.py                  # Simulation 戦闘ロジックのテスト（59件）
+│   ├── test_simulation.py                  # Simulation 戦闘ロジックのテスト（64件）
 │   ├── test_simulation_boost.py            # Simulation ブースト巡航ロジックのテスト（23件）
 │   ├── test_simulation_reload.py           # Simulation リロードロジックのテスト（11件）
 │   ├── test_agent_parts.py                 # Agent per-agent パラメータのテスト（25件）
@@ -82,14 +83,15 @@ BorderBreakシミュレーター/
 │   ├── test_bb_base_and_brand.py           # bb_base_and_brand のテスト（41件）
 │   ├── test_bb_brbonus_calcparam_limit.py  # bb_brbonus_calcparam_limit のテスト（37件）
 │   ├── test_bb_calc_movement.py            # bb_calc_movement のテスト（16件）
-│   └── test_catalog.py                     # catalog のテスト（16件）
+│   ├── test_catalog.py                     # catalog のテスト（16件）
+│   └── test_replay.py                      # replay_video() のテスト（5件）
 └── logs/
     └── dev/             # 開発用 CSV ログ出力先
         ├── steps_YYYYMMDD_HHMMSS.csv
         └── events_YYYYMMDD_HHMMSS.csv
 ```
 
-**テスト合計: 658 件（全件グリーン）**
+**テスト合計: 668 件（全件グリーン）**
 
 ### シミュレーターモジュールの依存関係
 
@@ -106,6 +108,9 @@ map_gen.py          → constants, game_types
 
 simulation.py       → constants, game_types, brain, agent, map_gen
                       （テスト後方互換のため全シンボルを re-import）
+
+replay.py           → simulation（Simulation, Agent, create_map）
+                      （動画生成専用スクリプト。simulation.py の _draw() を再利用）
 ```
 
 ---
@@ -254,7 +259,7 @@ ACTION_DELTA: dict[Action, tuple[int, int]]  # (dx, dy)
 | `_update_plants()` | 占拠ゲージ更新 |
 | `_update_cores()` | ベース内敵 BR からのコアダメージ |
 | `_update_detection()` | 全エージェントの被索敵状態（detected/exposure_steps）を更新 |
-| `run(max_steps, step_delay, verbose)` | アニメーション実行ループ |
+| `run(max_steps, step_delay=0.0, verbose=False)` | アニメーション実行ループ。`step_delay=0`（デフォルト）で GUI 非表示、`verbose=False`（デフォルト）でコンソール出力抑制 |
 | `save_dev_logs(base_dir)` | 開発用 CSV ログを保存 |
 
 #### `run()` の1ステップ処理順
@@ -365,6 +370,11 @@ capture_gauge = clamp(capture_gauge + net, -10, +10)
 | `alive_a` / `alive_b` | 生存機数 |
 | `p1_owner` 〜 `p3_owner` | プラント所有者（-1/0/1） |
 | `p1_gauge` 〜 `p3_gauge` | 占拠ゲージ |
+| `a{id}_x` / `a{id}_y` | エージェント座標（セル単位） ※リプレイ動画生成用 |
+| `a{id}_alive` | 生存状態（1=生存, 0=撃破） |
+| `a{id}_hp_pct` | HP 残量割合（0.0〜1.0） |
+| `a{id}_team` | チーム（0=A, 1=B、各ステップで一定） |
+| `a{id}_respawn` | リスポーン残時間（0=生存中） |
 
 ### events_YYYYMMDD_HHMMSS.csv（1行 = 1イベント）
 
@@ -415,6 +425,9 @@ capture_gauge = clamp(capture_gauge + net, -10, +10)
 - [x] ブーストテスト 70 件（test_agent_boost / test_simulation_boost / test_assemble 拡張）
 - [x] T-4: リロードタイマーの実装（clip / reload_steps / ammo_in_clip / reload_timer、assemble_agent_params に2キー追加）
 - [x] リロードテスト 22 件（test_agent_reload / test_simulation_reload / test_assemble 拡張）
+- [x] steps_*.csv へのエージェント座標記録（`a{id}_x` / `a{id}_y` / `a{id}_alive` / `a{id}_hp_pct` / `a{id}_team` / `a{id}_respawn`）
+- [x] `replay.py` — steps_*.csv からシミュレーション動画を生成（`.gif` / `.mp4` 対応、Pillow 必須）
+- [x] `run()` の GUI / コンソール出力デフォルトを OFF に変更（`step_delay=0.0`, `verbose=False`）
 
 ## 今後の実装タスク
 
@@ -566,6 +579,43 @@ python simulation.py
    - 600ステップ到達 → コア残HP比較で勝敗（引き分けあり）
 4. 終了後 `logs/dev/` に CSV ログを保存
 
+### リプレイ動画の生成
+
+`save_dev_logs()` で保存した `steps_*.csv` から動画を生成できる。
+
+```bash
+# GIF 生成（要: pip install pillow）
+python replay.py logs/dev/steps_YYYYMMDD_HHMMSS.csv sim.gif
+
+# MP4 生成（要: pip install pillow + FFmpeg システムインストール）
+python replay.py logs/dev/steps_YYYYMMDD_HHMMSS.csv sim.mp4 --fps 15
+```
+
+Python から直接呼ぶ場合:
+
+```python
+from replay import replay_video
+replay_video('logs/dev/steps_YYYYMMDD_HHMMSS.csv', 'sim.gif', fps=10)
+```
+
+> **注意**: エージェント列（`a{id}_x` 等）を含む最新フォーマットの steps_*.csv が必要。
+> 旧フォーマットの CSV を渡すと `ValueError` が発生する。
+
+### `run()` のオプション
+
+| パラメータ | デフォルト | 説明 |
+|---|---|---|
+| `step_delay` | `0.0` | ステップ間の表示時間（秒）。`0` で GUI 非表示 |
+| `verbose` | `False` | `True` でコンソールへの詳細ログを有効化 |
+
+```python
+# GUI 表示あり + コンソールログあり（python simulation.py の挙動）
+sim.run(max_steps=600, step_delay=0.10, verbose=True)
+
+# GUI なし + ログなし（テスト・バッチ実行向け。デフォルト）
+sim.run(max_steps=600)
+```
+
 ### テスト実行
 
 ```bash
@@ -674,4 +724,7 @@ bb_full_calc.py → bb_base_and_brand / bb_brbonus_calcparam_limit / bb_weapon_c
 ```
 numpy >= 1.26
 matplotlib >= 3.10
+pillow >= 10.0    # replay.py で .gif / .mp4 生成に必要（pip install pillow）
 ```
+
+> `.mp4` 出力には Pillow に加えて FFmpeg のシステムインストールが必要。
