@@ -222,6 +222,11 @@ def assemble_agent_params(
     # T-3: ブースト回復（boost_max > 0 のときのみ有効）
     boost_regen = _BOOST_REGEN_PER_STEP if boost_max > 0 else 0.0
 
+    # T-4: 弾倉容量とリロード時間
+    clip = int(main_weapon.get("clip", 0))
+    reload_val = main_weapon.get("reload", 0)
+    reload_steps = round(float(reload_val)) if reload_val else 0
+
     return {
         "max_hp": max_hp,
         "dps": dps,
@@ -234,4 +239,6 @@ def assemble_agent_params(
         "dash_cells_per_step": dash_cells_per_step,
         "boost_max": boost_max,
         "boost_regen": boost_regen,
+        "clip": clip,
+        "reload_steps": reload_steps,
     }

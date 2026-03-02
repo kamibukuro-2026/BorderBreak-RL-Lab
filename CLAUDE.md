@@ -67,14 +67,16 @@ BorderBreakシミュレーター/
 │   ├── test_plant.py                       # Plant クラスのテスト（42件）
 │   ├── test_agent.py                       # Agent クラスのテスト（53件）
 │   ├── test_agent_boost.py                 # Agent ブーストパラメータのテスト（20件）
+│   ├── test_agent_reload.py                # Agent リロードパラメータのテスト（8件）
 │   ├── test_brain.py                       # Brain / GreedyBaseAttackBrain のテスト（28件）
 │   ├── test_plant_capture_brain.py         # PlantCaptureBrain のテスト（25件）
 │   ├── test_aggressive_combat_brain.py     # AggressiveCombatBrain のテスト（18件）
 │   ├── test_detection.py                   # 被索敵状態のテスト（20件）
 │   ├── test_simulation.py                  # Simulation 戦闘ロジックのテスト（59件）
 │   ├── test_simulation_boost.py            # Simulation ブースト巡航ロジックのテスト（23件）
+│   ├── test_simulation_reload.py           # Simulation リロードロジックのテスト（11件）
 │   ├── test_agent_parts.py                 # Agent per-agent パラメータのテスト（25件）
-│   ├── test_assemble.py                    # assemble_agent_params のテスト（57件）
+│   ├── test_assemble.py                    # assemble_agent_params のテスト（76件）
 │   ├── test_simulation_parts.py            # Simulation + per-agent パラメータ統合テスト（20件）
 │   ├── test_weapon_calc.py                 # bb_weapon_calc のテスト（44件）
 │   ├── test_bb_base_and_brand.py           # bb_base_and_brand のテスト（41件）
@@ -87,7 +89,7 @@ BorderBreakシミュレーター/
         └── events_YYYYMMDD_HHMMSS.csv
 ```
 
-**テスト合計: 636 件（全件グリーン）**
+**テスト合計: 658 件（全件グリーン）**
 
 ### シミュレーターモジュールの依存関係
 
@@ -411,6 +413,8 @@ capture_gauge = clamp(capture_gauge + net, -10, +10)
 - [x] T-3.5: セルサイズ変更（CELL_SIZE_M: 10m → 5m、MAP 100×20 セル、全定数・テスト更新）
 - [x] parts_normalized.json の追加（496 パーツ）
 - [x] ブーストテスト 70 件（test_agent_boost / test_simulation_boost / test_assemble 拡張）
+- [x] T-4: リロードタイマーの実装（clip / reload_steps / ammo_in_clip / reload_timer、assemble_agent_params に2キー追加）
+- [x] リロードテスト 22 件（test_agent_reload / test_simulation_reload / test_assemble 拡張）
 
 ## 今後の実装タスク
 
@@ -446,17 +450,17 @@ capture_gauge = clamp(capture_gauge + net, -10, +10)
 - 変更済み定数: `CELL_SIZE_M=5`, `MAP_W=20`, `MAP_H=100`, `BASE_DEPTH=6`, `PLANT_RADIUS_C=6.0`,
   `SEARCH_RANGE_C=16.0`, `LOCKON_RANGE_C=12.0`, `CELLS_PER_STEP=4`, `HIT_RATE=0.64`
 - assemble.py ローカル定数（`_CELL_SIZE_M=5` 等）も更新済み
-- テスト群の座標・コメント・docstring を全更新（636 件全件グリーン）
+- テスト群の座標・コメント・docstring を全更新（658 件全件グリーン）
 
 ### フェーズ2: 武器の射撃サイクル実装（優先度：中）
 
-#### T-4. リロードタイマーの実装
-- **現状**: 毎ステップ DPS を無条件に適用（無限射撃）
-- **目標**: 弾倉（clip）→ 射撃 → リロード（reload 秒）のサイクルを再現
-- `Agent` に `ammo_in_clip: int`・`reload_timer: int` 属性を追加
-- `AgentLoadout` / `RoleLoadout` に `clip: int`・`reload_steps: int` を追加（`reload_steps = round(reload)` で1秒=1ステップ）
-- `Simulation._resolve_combat()` の変更: reload_timer > 0 → 射撃不可・タイマー減算のみ
-- `_process_respawns()` でリスポーン時に弾倉をフル補充
+#### T-4. リロードタイマーの実装 ✅ 実装済み
+- `Agent` に `ammo_in_clip: int`・`reload_timer: int` 属性を追加（`clip=0` → 無限弾・後方互換）
+- `RoleLoadout` に `clip: int = 0`・`reload_steps: int = 0` を追加
+- `Simulation._resolve_combat()`: `reload_timer > 0` → タイマー減算・射撃スキップ、`timer==0` かつ `clip>0` → `ammo_in_clip=clip`（補充）
+- 射撃後に `ammo_in_clip -= shots_per_step`、0以下 → `reload_timer = reload_steps`
+- `_process_respawns()` でリスポーン時に `ammo_in_clip = clip`, `reload_timer = 0`
+- `assemble_agent_params()` に `clip`, `reload_steps` を追加（13キー）
 
 #### T-5. arm: reloadRate の反映
 - **前提**: T-4 実装後
@@ -513,7 +517,7 @@ T-1（armor→max_hp）       ✅ 実装済み
 T-2（aim→hit_rate）       ✅ 実装済み
 T-3（ブースト巡航）        ✅ 実装済み
 T-3.5（セルサイズ変更）    ✅ 実装済み
-T-4（リロード）            独立 ← T-5, T-7 の前提
+T-4（リロード）            ✅ 実装済み ← T-5, T-7 の前提
 T-5（reloadRate反映）     T-4 の後
 T-6（precision→hit_rate） T-2 の後
 T-7（ammo弾切れ）         T-4 の後
@@ -530,10 +534,10 @@ T-11（積載量）             独立
 | ✅ | T-1 armor → max_hp | 装甲差がロール間の基本差として最重要 |
 | ✅ | T-2 aim → hit_rate | 命中率固定がシミュレーション精度に影響大 |
 | ✅ | T-3 ブースト巡航 | 実ゲームの移動の大半はダッシュ。速度差の再現 |
-| 1 | T-3.5 セルサイズ変更 | 10m→5m で walk/dash の速度分解能が向上 |
-| 2 | T-8 ロール選択戦略 | T-1/T-2 実装後に複数ロール混成が意味を持つ |
-| 3 | T-4 リロードタイマー | 武器スペックの差を最もよく反映できる |
-| 4 | T-5 reloadRate反映 | T-4 があれば追加コスト小 |
+| ✅ | T-3.5 セルサイズ変更 | 10m→5m で walk/dash の速度分解能が向上 |
+| ✅ | T-4 リロードタイマー | 武器スペックの差を最もよく反映できる |
+| 1 | T-8 ロール選択戦略 | T-1/T-2/T-4 実装後に複数ロール混成が意味を持つ |
+| 2 | T-5 reloadRate反映 | T-4 があれば追加コスト小 |
 | 5 | T-7 ammo弾切れ | T-4 があれば追加コスト小 |
 | 6 | T-6, T-10, T-11 | 状況に応じて |
 | 後 | T-9 スペシャル | 実装コスト高、優先度は最終段階 |

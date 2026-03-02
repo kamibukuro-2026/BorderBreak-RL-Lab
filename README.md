@@ -31,7 +31,7 @@ BASE B（チームB）
 - **同時解決戦闘** — 全エージェントの射撃を一括計算してから適用（相打ちあり）
 - **CSV ログ出力** — ステップ・イベントの2種類のログを自動保存、分析に利用可能
 - **パーツ・武器データ管理** — 実際のゲームデータを基にした機体パラメータ計算（セットボーナス・強化チップ・重量ペナルティ・武器派生パラメータ）
-- **636 件のユニットテスト** — TDD で開発、全件グリーン
+- **658 件のユニットテスト** — TDD で開発、全件グリーン
 
 ---
 
@@ -138,14 +138,16 @@ BorderBreakシミュレーター/
 │   ├── test_plant.py                 # Plant クラスのテスト（42件）
 │   ├── test_agent.py                 # Agent クラスのテスト（53件）
 │   ├── test_agent_boost.py           # Agent ブーストパラメータのテスト（20件）
+│   ├── test_agent_reload.py          # Agent リロードパラメータのテスト（8件）
 │   ├── test_brain.py                 # GreedyBaseAttackBrain のテスト（28件）
 │   ├── test_plant_capture_brain.py   # PlantCaptureBrain のテスト（25件）
 │   ├── test_aggressive_combat_brain.py  # AggressiveCombatBrain のテスト（18件）
 │   ├── test_detection.py             # 被索敵状態のテスト（20件）
 │   ├── test_simulation.py            # Simulation 戦闘ロジックのテスト（59件）
 │   ├── test_simulation_boost.py      # Simulation ブースト巡航ロジックのテスト（23件）
+│   ├── test_simulation_reload.py     # Simulation リロードロジックのテスト（11件）
 │   ├── test_agent_parts.py           # Agent per-agent パラメータのテスト（25件）
-│   ├── test_assemble.py              # assemble_agent_params のテスト（57件）
+│   ├── test_assemble.py              # assemble_agent_params のテスト（76件）
 │   ├── test_simulation_parts.py      # Simulation + per-agent パラメータ統合テスト（20件）
 │   ├── test_weapon_calc.py           # bb_weapon_calc のテスト（44件）
 │   ├── test_bb_base_and_brand.py     # bb_base_and_brand のテスト（41件）
@@ -257,11 +259,11 @@ weapon = calc_full(catalog, LoadoutKeys("a","a","a","a"), weapons={"main": ref})
 
 ### フェーズ2: 武器の射撃サイクル実装（優先度：中）
 
-| タスク | 内容 |
-|---|---|
-| T-4 リロードタイマー | 弾倉（clip）→ 射撃 → リロード（reload 秒）のサイクルを再現（現在は無限射撃） |
-| T-5 reloadRate 反映 | arm の `reloadRate` ランクをリロード時間に乗算（T-4 の後） |
-| T-6 precision 反映 | 武器の `precision` ランクを命中率に反映（T-2 の後） |
+| タスク | 状態 | 内容 |
+|---|---|---|
+| T-4 リロードタイマー | ✅ 完了 | 弾倉（clip）→ 射撃 → リロード（reload_steps）のサイクルを実装。`clip=0` で後方互換 |
+| T-5 reloadRate 反映 | 未着手 | arm の `reloadRate` ランクをリロード時間に乗算（T-4 の後） |
+| T-6 precision 反映 | 未着手 | 武器の `precision` ランクを命中率に反映（T-2 の後） |
 
 ### フェーズ3: 弾切れと補給（優先度：中〜低）
 

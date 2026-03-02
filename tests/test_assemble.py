@@ -299,7 +299,7 @@ class TestAssembleAgentParamsStructure:
         assert isinstance(params, dict)
 
     def test_has_required_keys(self):
-        """11の必須キーが含まれる"""
+        """13の必須キーが含まれる（T-4: clip / reload_steps を追加）"""
         result = make_calc_result()
         params = assemble_agent_params(result)
         assert "max_hp" in params
@@ -313,9 +313,11 @@ class TestAssembleAgentParamsStructure:
         assert "dash_cells_per_step" in params
         assert "boost_max" in params
         assert "boost_regen" in params
+        assert "clip" in params
+        assert "reload_steps" in params
 
     def test_no_extra_keys(self):
-        """余分なキーが含まれない"""
+        """余分なキーが含まれない（T-4: 13キー）"""
         result = make_calc_result()
         params = assemble_agent_params(result)
         assert set(params.keys()) == {
@@ -323,6 +325,7 @@ class TestAssembleAgentParamsStructure:
             "cells_per_step", "hit_rate", "shots_per_step",
             "walk_cells_per_step", "dash_cells_per_step",
             "boost_max", "boost_regen",
+            "clip", "reload_steps",
         }
 
     def test_params_can_be_spread_into_agent(self):
@@ -341,6 +344,8 @@ class TestAssembleAgentParamsStructure:
         assert agent.dash_cells_per_step == params["dash_cells_per_step"]
         assert agent.boost_max == params["boost_max"]
         assert agent.boost_regen == pytest.approx(params["boost_regen"])
+        assert agent.clip == params["clip"]
+        assert agent.reload_steps == params["reload_steps"]
 
     def test_fully_missing_result_all_defaults(self):
         """空の dict → 全フィールドがデフォルト値"""
@@ -631,3 +636,30 @@ class TestAssembleBoostRegen:
         result = make_calc_result_with_dash(booster_param=90.0)
         params = assemble_agent_params(result)
         assert isinstance(params["boost_regen"], float)
+
+
+# ─────────────────────────────────────────
+# T-4: clip / reload_steps の抽出テスト
+# ─────────────────────────────────────────
+class TestAssembleReload:
+
+    def test_clip_extracted_from_weapon(self):
+        """weapons.main.clip=30 → params["clip"]=30"""
+        result = make_calc_result()
+        result["weapons"]["main"]["clip"] = 30
+        params = assemble_agent_params(result)
+        assert params["clip"] == 30
+
+    def test_reload_steps_extracted_from_weapon(self):
+        """weapons.main.reload=2.5 → params["reload_steps"]=round(2.5)=2"""
+        result = make_calc_result()
+        result["weapons"]["main"]["reload"] = 2.5
+        params = assemble_agent_params(result)
+        assert params["reload_steps"] == 2
+
+    def test_clip_zero_when_weapon_data_missing(self):
+        """weapons.main に clip がない → clip=0（後方互換・無限弾）"""
+        result = make_calc_result()
+        params = assemble_agent_params(result)
+        assert params["clip"] == 0
+        assert params["reload_steps"] == 0

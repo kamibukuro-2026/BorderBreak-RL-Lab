@@ -22,8 +22,10 @@ if TYPE_CHECKING:
 @dataclass
 class RoleLoadout:
     """ロール1枠分の設定（武器 DPS + 行動戦略）"""
-    dps  : int
-    brain: Brain  # 行動戦略インスタンス
+    dps         : int
+    brain       : Brain  # 行動戦略インスタンス
+    clip        : int = 0   # 弾倉容量（0 = リロードなし・無限弾）
+    reload_steps: int = 0   # リロード時間（ステップ単位、0 = リロードなし）
 
 
 @dataclass
@@ -96,7 +98,9 @@ class Agent:
                  boost_max: int = 0,
                  boost_regen: float = 0.0,
                  walk_cells_per_step: int = 1,
-                 dash_cells_per_step: int = CELLS_PER_STEP):
+                 dash_cells_per_step: int = CELLS_PER_STEP,
+                 clip: int = 0,
+                 reload_steps: int = 0):
         self.agent_id       = agent_id
         self.x              = x
         self.y              = y
@@ -142,6 +146,12 @@ class Agent:
         self.walk_cells_per_step = walk_cells_per_step
         self.dash_cells_per_step = dash_cells_per_step
         self.is_cruising         = False
+
+        # T-4: リロードパラメータ（clip=0 は後方互換：リロードなし・無限弾）
+        self.clip          = clip
+        self.reload_steps  = reload_steps
+        self.ammo_in_clip  = clip   # 初期状態は満タン
+        self.reload_timer  = 0      # 初期は射撃可能
 
         self.hp = self.max_hp  # 現在HP（max_hp で初期化）
 

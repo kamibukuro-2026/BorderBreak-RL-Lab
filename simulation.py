@@ -465,6 +465,13 @@ class Simulation:
             if not agent.alive:
                 continue
 
+            # T-4: リロードタイマー処理（タイマー中は射撃スキップ）
+            if agent.reload_timer > 0:
+                agent.reload_timer -= 1
+                if agent.reload_timer == 0 and agent.clip > 0:
+                    agent.ammo_in_clip = agent.clip  # リロード完了・弾倉補充
+                continue
+
             # ロックオン距離内の敵を抽出し最近接を選ぶ
             in_range = [
                 a for a in self.agents
@@ -483,6 +490,13 @@ class Simulation:
                 pending_damage[tid] = pending_damage.get(tid, 0) + dmg
                 shooters[tid] = agent.agent_id   # 最後にダメージを与えたシューターを記録
                 hit_log.append((agent.agent_id, agent.team, tid, target.team, dmg))
+
+            # T-4: ammo 消費とリロード開始（clip=0 は無限弾・後方互換）
+            if agent.clip > 0:
+                agent.ammo_in_clip -= agent.shots_per_step
+                if agent.ammo_in_clip <= 0:
+                    agent.ammo_in_clip = 0
+                    agent.reload_timer = agent.reload_steps
 
         # フェーズ2: 一括ダメージ適用
         for agent in self.agents:
@@ -560,6 +574,9 @@ class Simulation:
                 if agent.boost_max > 0:
                     agent.boost = float(agent.boost_max)
                     agent.is_cruising = False
+                # T-4: 弾倉リセット（clip=0 は無限弾・後方互換）
+                agent.ammo_in_clip = agent.clip
+                agent.reload_timer = 0
                 team_str = "A" if agent.team == 0 else "B"
                 events.append(
                     f"  ★ BR{agent.agent_id}(チーム{team_str}) が {spawn_desc} からリスポーン！"
