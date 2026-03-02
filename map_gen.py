@@ -13,8 +13,8 @@ def get_base_spawn_points(team: int) -> list[tuple[int, int]]:
 
     x: ベース左端(x=0)から1グリッド(x=1)、右端(x=MAP_W-1)から1グリッド(x=MAP_W-2)
     y: ベース中央
-      Team A (team=0): y = BASE_DEPTH // 2              (= 1)
-      Team B (team=1): y = MAP_H - BASE_DEPTH // 2 - 1  (= 48)
+      Team A (team=0): y = BASE_DEPTH // 2              (= 3)
+      Team B (team=1): y = MAP_H - BASE_DEPTH // 2 - 1  (= 96)
     """
     y = BASE_DEPTH // 2 if team == 0 else MAP_H - BASE_DEPTH // 2 - 1
     return [(1, y), (MAP_W - 2, y)]
@@ -22,19 +22,19 @@ def get_base_spawn_points(team: int) -> list[tuple[int, int]]:
 
 def create_map() -> tuple[Map, list[Plant]]:
     """
-    縦500m × 横100m (50×10 セル) のマップを生成する。
+    縦500m × 横100m (100×20 セル) のマップを生成する。
 
     レイアウト:
-      y =  0 〜  2 : Base A（チームA、上端）
-      y = 47 〜 49 : Base B（チームB、下端）
+      y =  0 〜  5 : Base A（チームA、上端）
+      y = 94 〜 99 : Base B（チームB、下端）
 
     プラント（NUM_PLANTS=3）:
-      ベース間（y=3〜46）を等分割した位置に配置
-      横中央（x=5, 50m）に設置
-      占拠範囲: 半径 30m = 3 セル
+      ベース間（y=6〜93）を等分割した位置に配置
+      横中央（x=10, 50m）に設置
+      占拠範囲: 半径 30m = 6 セル
 
     プラント位置:
-      linspace(3, 46, 5)[1:-1] → y = 14 (140m), 25 (250m), 35 (350m)
+      linspace(6, 93, 5)[1:-1] → y = 28 (140m), 50 (250m), 71 (355m)
     """
     game_map = Map(MAP_W, MAP_H)
 

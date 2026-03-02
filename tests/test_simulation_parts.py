@@ -105,7 +105,7 @@ class TestResolveCombatUsesAgentDps:
         """ロックオン範囲外では dps が大きくてもダメージなし"""
         sim = make_sim()
         add_agent(sim, 1, 0, 0, team=0, dps=99999)
-        target = add_agent(sim, 2, 0, 10, team=1)   # dist=10 > lockon_range_c=6
+        target = add_agent(sim, 2, 0, 13, team=1)   # dist=13 > lockon_range_c=12
         sim._resolve_combat()
         assert target.hp == AGENT_HP
 
@@ -150,11 +150,11 @@ class TestExecuteActionUsesCellsPerStep:
     def test_cells_per_step_blocked_by_wall(self):
         """cells_per_step=5 でも MAP 境界で止まる"""
         sim = make_sim()
-        # x=8 から MOVE_RIGHT → MAP_W=10 なので x=9（境界=9）で止まる
-        a = Agent(agent_id=1, x=8, y=10, team=0, cells_per_step=5)
+        # x=16 から MOVE_RIGHT → MAP_W=20 なので x=19（境界=19）で止まる
+        a = Agent(agent_id=1, x=16, y=10, team=0, cells_per_step=5)
         sim.add_agent(a)
         sim._execute_action(a, Action.MOVE_RIGHT)
-        assert a.x == 9   # 最大 x は MAP_W-1=9
+        assert a.x == MAP_W - 1   # 最大 x は MAP_W-1=19
 
     def test_cells_per_step_stay_action_no_movement(self):
         """STAY アクション時は cells_per_step に関わらず移動しない"""
@@ -174,8 +174,8 @@ class TestUpdateCoresUsesAgentDps:
     def test_custom_dps_damages_core_by_agent_dps(self):
         """dps=6000 のエージェントが敵ベース内 → コアに 6000 ダメージ"""
         sim = make_sim(with_bases=True)
-        # チームA(team=0)のエージェントをチームBのベース(y=47~49)内に配置
-        a = Agent(agent_id=1, x=5, y=47, team=0, dps=6000)
+        # チームA(team=0)のエージェントをチームBのベース(y=94-99)内に配置
+        a = Agent(agent_id=1, x=5, y=95, team=0, dps=6000)
         sim.add_agent(a)
         core_b = sim.cores[1]
         prev_hp = core_b.hp
@@ -185,7 +185,7 @@ class TestUpdateCoresUsesAgentDps:
     def test_low_dps_damages_core_less(self):
         """dps=500 のエージェントが敵ベース内 → コアに 500 ダメージ"""
         sim = make_sim(with_bases=True)
-        a = Agent(agent_id=1, x=5, y=47, team=0, dps=500)
+        a = Agent(agent_id=1, x=5, y=95, team=0, dps=500)
         sim.add_agent(a)
         core_b = sim.cores[1]
         prev_hp = core_b.hp
@@ -195,7 +195,7 @@ class TestUpdateCoresUsesAgentDps:
     def test_default_dps_damages_core_by_dps_constant(self):
         """dps 未指定（デフォルト）では DPS 定数分コアへダメージ"""
         sim = make_sim(with_bases=True)
-        a = Agent(agent_id=1, x=5, y=47, team=0)    # dps=DPS
+        a = Agent(agent_id=1, x=5, y=95, team=0)    # dps=DPS
         sim.add_agent(a)
         core_b = sim.cores[1]
         prev_hp = core_b.hp
@@ -206,8 +206,8 @@ class TestUpdateCoresUsesAgentDps:
         """異なる dps の2エージェントがベース内 → それぞれのダメージが加算"""
         sim = make_sim(with_bases=True)
         # team=0 の2エージェントがチームBベース内: dps=2000 + dps=3000 = 5000
-        a1 = Agent(agent_id=1, x=4, y=47, team=0, dps=2000)
-        a2 = Agent(agent_id=2, x=5, y=47, team=0, dps=3000)
+        a1 = Agent(agent_id=1, x=4, y=95, team=0, dps=2000)
+        a2 = Agent(agent_id=2, x=5, y=94, team=0, dps=3000)
         sim.add_agent(a1)
         sim.add_agent(a2)
         core_b = sim.cores[1]
@@ -218,7 +218,7 @@ class TestUpdateCoresUsesAgentDps:
     def test_team_b_agent_custom_dps_damages_core_a(self):
         """チームBエージェント(dps=4000)がチームAベース内 → コアAに 4000 ダメージ"""
         sim = make_sim(with_bases=True)
-        # チームAのベースはy=0~2
+        # チームAのベースはy=0-5
         b = Agent(agent_id=2, x=5, y=1, team=1, dps=4000)
         sim.add_agent(b)
         core_a = sim.cores[0]

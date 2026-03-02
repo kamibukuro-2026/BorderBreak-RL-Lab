@@ -12,11 +12,11 @@ tests/test_detection.py
       - ロックオン: 即座に detected=True（exposure_steps に関わらず）
       - 死亡エージェント: exposure_steps=0, detected=False にリセット
 
-定数（SEARCH_RANGE_C=8.0, LOCKON_RANGE_C=6.0, DETECTION_STEPS=3）
+定数（SEARCH_RANGE_C=16.0, LOCKON_RANGE_C=12.0, DETECTION_STEPS=3）
 エージェント固定位置 (5, 25) に対する敵配置:
-  SEARCH_ONLY: (5, 32)  dist=7  索敵範囲内・ロックオン外
-  LOCKON_POS : (5, 30)  dist=5  ロックオン範囲内
-  OUT_OF_POS : (5, 34)  dist=9  索敵範囲外
+  SEARCH_ONLY: (5, 39)  dist=14  索敵範囲内・ロックオン外
+  LOCKON_POS : (5, 30)  dist=5   ロックオン範囲内
+  OUT_OF_POS : (5, 42)  dist=17  索敵範囲外
 """
 import pytest
 from simulation import (
@@ -81,9 +81,9 @@ class TestUpdateDetectionNoThreat:
         assert agent.exposure_steps == 0
 
     def test_enemy_out_of_search_range_no_change(self):
-        """索敵範囲外(dist=9)の敵は検知しない"""
+        """索敵範囲外(dist=17)の敵は検知しない"""
         agent = make_agent(1, x=5, y=25, team=0)
-        enemy = make_agent(2, x=5, y=34, team=1)   # dist=9 > 8
+        enemy = make_agent(2, x=5, y=42, team=1)   # dist=17 > 16
         sim   = make_sim(agent, enemy)
         sim._update_detection()
         assert agent.detected is False
@@ -103,11 +103,11 @@ class TestUpdateDetectionNoThreat:
 # 索敵範囲内（ロックオン外）の連続ステップ
 # ─────────────────────────────────────────
 class TestUpdateDetectionSearchRange:
-    """エージェント(5,25)、敵(5,32) dist=7: 索敵範囲内・ロックオン外"""
+    """エージェント(5,25)、敵(5,39) dist=14: 索敵範囲内・ロックオン外"""
 
     def setup_method(self):
         self.agent = make_agent(1, x=5, y=25, team=0)
-        self.enemy = make_agent(2, x=5, y=32, team=1)  # dist=7
+        self.enemy = make_agent(2, x=5, y=39, team=1)  # dist=14
         self.sim   = make_sim(self.agent, self.enemy)
 
     def test_one_step_exposure_increments_not_detected(self):
@@ -144,10 +144,10 @@ class TestUpdateDetectionReset:
     def test_exposure_resets_when_enemy_leaves_search_range(self):
         """敵が索敵範囲外に移動すると exposure_steps=0"""
         agent = make_agent(1, x=5, y=25, team=0)
-        enemy = make_agent(2, x=5, y=32, team=1)   # dist=7
+        enemy = make_agent(2, x=5, y=39, team=1)   # dist=14
         sim   = make_sim(agent, enemy)
         sim._update_detection()                     # exposure_steps=1
-        enemy.y = 34                                # dist=9 → 範囲外
+        enemy.y = 42                                # dist=17 → 範囲外
         sim._update_detection()
         assert agent.exposure_steps == 0
         assert agent.detected is False
@@ -155,12 +155,12 @@ class TestUpdateDetectionReset:
     def test_detected_clears_after_three_steps_then_enemy_leaves(self):
         """3ステップ検知後に敵が範囲外へ → detected=False"""
         agent = make_agent(1, x=5, y=25, team=0)
-        enemy = make_agent(2, x=5, y=32, team=1)
+        enemy = make_agent(2, x=5, y=39, team=1)
         sim   = make_sim(agent, enemy)
         for _ in range(DETECTION_STEPS):
             sim._update_detection()
         assert agent.detected is True
-        enemy.y = 34                                # 範囲外
+        enemy.y = 42                                # 範囲外
         sim._update_detection()
         assert agent.detected is False
         assert agent.exposure_steps == 0
@@ -168,13 +168,13 @@ class TestUpdateDetectionReset:
     def test_exposure_restarts_from_zero_after_gap(self):
         """範囲外を1ステップ挟むと exposure_steps が 1 から再カウント"""
         agent = make_agent(1, x=5, y=25, team=0)
-        enemy = make_agent(2, x=5, y=32, team=1)
+        enemy = make_agent(2, x=5, y=39, team=1)
         sim   = make_sim(agent, enemy)
         sim._update_detection()                     # exposure_steps=1
         sim._update_detection()                     # exposure_steps=2
-        enemy.y = 34                                # 範囲外
+        enemy.y = 42                                # 範囲外
         sim._update_detection()                     # exposure_steps=0
-        enemy.y = 32                                # 再び範囲内
+        enemy.y = 39                                # 再び範囲内
         sim._update_detection()                     # exposure_steps=1（再スタート）
         assert agent.exposure_steps == 1
         assert agent.detected is False
@@ -193,9 +193,9 @@ class TestUpdateDetectionLockon:
         assert agent.detected is True
 
     def test_lockon_triggers_at_exact_boundary(self):
-        """ロックオン境界ちょうど(dist=6) → detected=True"""
+        """ロックオン境界ちょうど(dist=12) → detected=True"""
         agent = make_agent(1, x=5, y=25, team=0)
-        enemy = make_agent(2, x=5, y=31, team=1)   # dist=6 = LOCKON_RANGE_C
+        enemy = make_agent(2, x=5, y=37, team=1)   # dist=12 = LOCKON_RANGE_C
         sim   = make_sim(agent, enemy)
         sim._update_detection()
         assert agent.detected is True
@@ -215,7 +215,7 @@ class TestUpdateDetectionLockon:
         enemy = make_agent(2, x=5, y=30, team=1)   # dist=5, LO内
         sim   = make_sim(agent, enemy)
         sim._update_detection()                     # exposure_steps=1, detected=True
-        enemy.y = 32                                # dist=7, 索敵内・LO外
+        enemy.y = 39                                # dist=14, 索敵内・LO外
         sim._update_detection()                     # exposure_steps=2, locked_on=False
         assert agent.exposure_steps == 2
         assert agent.detected is False              # 2 < DETECTION_STEPS

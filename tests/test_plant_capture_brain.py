@@ -87,7 +87,7 @@ class TestPlantCaptureBrainInit:
 # ATTACK 状態（ロックオン距離内に敵）
 # ─────────────────────────────────────────
 class TestPlantCaptureBrainAttack:
-    """LOCKON_RANGE_C = 6.0"""
+    """LOCKON_RANGE_C = 12.0"""
 
     def setup_method(self):
         self.m      = make_map()
@@ -96,15 +96,15 @@ class TestPlantCaptureBrainAttack:
         self.plants = make_plants()  # 全中立（未占拠）
 
     def test_stay_when_enemy_in_lockon(self):
-        """ロックオン距離内(dist ≤ 6)の敵 → STAY（射撃モード）"""
+        """ロックオン距離内(dist ≤ 12)の敵 → STAY（射撃モード）"""
         enemy = make_agent(agent_id=2, x=5, y=30, team=1)  # dist = 5
         action = decide(self.brain, self.agent, self.m, self.plants,
                         [self.agent, enemy])
         assert action is Action.STAY
 
     def test_stay_at_exact_lockon_boundary(self):
-        """ロックオン距離ちょうど(dist = 6) → STAY"""
-        enemy = make_agent(agent_id=2, x=5, y=31, team=1)  # dist = 6
+        """ロックオン距離ちょうど(dist = 12) → STAY"""
+        enemy = make_agent(agent_id=2, x=5, y=37, team=1)  # dist = 12
         action = decide(self.brain, self.agent, self.m, self.plants,
                         [self.agent, enemy])
         assert action is Action.STAY
@@ -130,7 +130,7 @@ class TestPlantCaptureBrainAttack:
 # APPROACH 状態（索敵範囲内・ロックオン外）
 # ─────────────────────────────────────────
 class TestPlantCaptureBrainApproach:
-    """6 < dist ≤ 8 の敵に向かって移動"""
+    """12 < dist ≤ 16 の敵に向かって移動"""
 
     def setup_method(self):
         self.m      = make_map()
@@ -140,29 +140,29 @@ class TestPlantCaptureBrainApproach:
 
     def test_approach_moves_toward_enemy_below(self):
         """索敵内・ロックオン外の敵が下 → MOVE_DOWN"""
-        enemy = make_agent(agent_id=2, x=5, y=32, team=1)  # dist = 7
+        enemy = make_agent(agent_id=2, x=5, y=38, team=1)  # dist = 13
         action = decide(self.brain, self.agent, self.m, self.plants,
                         [self.agent, enemy])
         assert action is Action.MOVE_DOWN
 
     def test_approach_moves_toward_enemy_above(self):
         """索敵内・ロックオン外の敵が上 → MOVE_UP"""
-        enemy = make_agent(agent_id=2, x=5, y=18, team=1)  # dist = 7
+        enemy = make_agent(agent_id=2, x=5, y=12, team=1)  # dist = 13
         action = decide(self.brain, self.agent, self.m, self.plants,
                         [self.agent, enemy])
         assert action is Action.MOVE_UP
 
     def test_approach_prioritized_over_capture(self):
         """未占拠プラントがあっても索敵範囲内の敵には APPROACH"""
-        enemy = make_agent(agent_id=2, x=5, y=32, team=1)  # dist = 7
+        enemy = make_agent(agent_id=2, x=5, y=38, team=1)  # dist = 13
         action = decide(self.brain, self.agent, self.m, self.plants,
                         [self.agent, enemy])
         # CAPTURE(p1 が上)より APPROACH(敵は下)が優先 → 敵方向に MOVE_DOWN
         assert action is Action.MOVE_DOWN
 
     def test_approach_outside_search_range_falls_to_capture(self):
-        """索敵範囲外(dist > 8)の敵は無視 → CAPTURE へ"""
-        enemy = make_agent(agent_id=2, x=5, y=34, team=1)  # dist = 9
+        """索敵範囲外(dist > 16)の敵は無視 → CAPTURE へ"""
+        enemy = make_agent(agent_id=2, x=5, y=42, team=1)  # dist = 17
         action = decide(self.brain, self.agent, self.m, self.plants,
                         [self.agent, enemy])
         # 敵無視 → チームA: y最小の未占拠=p1(5,14) → MOVE_UP
@@ -175,8 +175,8 @@ class TestPlantCaptureBrainApproach:
 class TestPlantCaptureBrainCapture:
     """
     プラント配置: p1(5,14), p2(5,25), p3(5,35)
-    チームA ベース: y=0-2（上端）→ y が小さいプラントが近い
-    チームB ベース: y=47-49（下端）→ y が大きいプラントが近い
+    チームA ベース: y=0-5（上端）→ y が小さいプラントが近い
+    チームB ベース: y=94-99（下端）→ y が大きいプラントが近い
     """
 
     def setup_method(self):

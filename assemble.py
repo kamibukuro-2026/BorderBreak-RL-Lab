@@ -106,7 +106,13 @@ def calc_full(
 
 
 # 1セルあたりのメートル数（simulation.py の CELL_SIZE_M と同値、循環 import 回避）
-_CELL_SIZE_M = 10
+_CELL_SIZE_M     = 5
+_SEARCH_RANGE_M  = 80
+_LOCKON_RANGE_M  = 60
+_MOVE_SPEED_MPS  = 21.9
+_SEARCH_RANGE_C  = _SEARCH_RANGE_M / _CELL_SIZE_M   # 16.0
+_LOCKON_RANGE_C  = _LOCKON_RANGE_M / _CELL_SIZE_M   # 12.0
+_CELLS_PER_STEP  = max(1, round(_MOVE_SPEED_MPS / _CELL_SIZE_M))  # 4
 # 装甲計算の基準 HP（rank_param["armor"] はダメージ係数: 実効HP = 基準HP / 係数）
 _AGENT_HP_BASE = 10_000
 # T-2: aim.param → hit_rate 変換定数（constants.py と同値、循環 import 回避）
@@ -124,9 +130,9 @@ def assemble_agent_params(
     *,
     default_max_hp: int = _AGENT_HP_BASE,
     default_dps: int = 3000,
-    default_search_range_c: float = 8.0,
-    default_lockon_range_c: float = 6.0,
-    default_cells_per_step: int = 2,
+    default_search_range_c: float = _SEARCH_RANGE_C,
+    default_lockon_range_c: float = _LOCKON_RANGE_C,
+    default_cells_per_step: int = _CELLS_PER_STEP,
     default_hit_rate: float = _HIT_RATE_DEFAULT,
     default_shots_per_step: int = 1,
     default_walk_cells_per_step: int = 1,

@@ -101,8 +101,8 @@ class TestPatrol:
         assert self._decide([self.agent, friend]) is Action.MOVE_DOWN
 
     def test_enemy_out_of_search_range(self):
-        """索敵範囲外(dist > 8)の敵は無視 → PATROL"""
-        enemy = make_agent(agent_id=2, x=5, y=34, team=1)  # dist = 9
+        """索敵範囲外(dist > 16)の敵は無視 → PATROL"""
+        enemy = make_agent(agent_id=2, x=5, y=42, team=1)  # dist = 17
         assert self._decide([self.agent, enemy]) is Action.MOVE_DOWN
 
     def test_patrol_move_down_toward_below_target(self):
@@ -145,7 +145,7 @@ class TestPatrol:
 # ATTACK 状態（ロックオン距離内に敵）
 # ─────────────────────────────────────────
 class TestAttack:
-    """LOCKON_RANGE_C = 6.0"""
+    """LOCKON_RANGE_C = 12.0"""
 
     def setup_method(self):
         self.m     = make_map()
@@ -153,14 +153,14 @@ class TestAttack:
         self.agent = make_agent(x=5, y=25, team=0)
 
     def test_stay_when_enemy_in_lockon(self):
-        """ロックオン距離内(dist ≤ 6)の敵 → STAY（射撃モード）"""
+        """ロックオン距離内(dist ≤ 12)の敵 → STAY（射撃モード）"""
         enemy = make_agent(agent_id=2, x=5, y=30, team=1)  # dist = 5
         action = decide(self.brain, self.agent, self.m, [self.agent, enemy])
         assert action is Action.STAY
 
     def test_stay_when_enemy_at_exact_lockon_boundary(self):
-        """ロックオン距離ちょうど(dist = 6) → STAY"""
-        enemy = make_agent(agent_id=2, x=5, y=31, team=1)  # dist = 6
+        """ロックオン距離ちょうど(dist = 12) → STAY"""
+        enemy = make_agent(agent_id=2, x=5, y=37, team=1)  # dist = 12
         action = decide(self.brain, self.agent, self.m, [self.agent, enemy])
         assert action is Action.STAY
 
@@ -174,7 +174,7 @@ class TestAttack:
     def test_attack_chooses_nearest_when_multiple_enemies(self):
         """複数敵のうち最近接がロックオン内ならATTACK→STAY"""
         near  = make_agent(agent_id=2, x=5, y=30, team=1)  # dist = 5
-        far   = make_agent(agent_id=3, x=5, y=33, team=1)  # dist = 8, search境界
+        far   = make_agent(agent_id=3, x=5, y=40, team=1)  # dist = 15, search境界内
         action = decide(self.brain, self.agent, self.m,
                         [self.agent, near, far])
         assert action is Action.STAY
@@ -184,7 +184,7 @@ class TestAttack:
 # APPROACH 状態（索敵内・ロックオン外）
 # ─────────────────────────────────────────
 class TestApproach:
-    """6 < dist ≤ 8 の敵に向かって移動"""
+    """12 < dist ≤ 16 の敵に向かって移動"""
 
     def setup_method(self):
         self.m     = make_map()
@@ -193,40 +193,30 @@ class TestApproach:
 
     def test_approach_moves_toward_enemy_below(self):
         """索敵内・ロックオン外の敵が下 → MOVE_DOWN"""
-        enemy = make_agent(agent_id=2, x=5, y=32, team=1)  # dist = 7
+        enemy = make_agent(agent_id=2, x=5, y=38, team=1)  # dist = 13
         action = decide(self.brain, self.agent, self.m, [self.agent, enemy])
         assert action is Action.MOVE_DOWN
 
     def test_approach_moves_toward_enemy_above(self):
         """索敵内・ロックオン外の敵が上 → MOVE_UP"""
-        enemy = make_agent(agent_id=2, x=5, y=18, team=1)  # dist = 7
+        enemy = make_agent(agent_id=2, x=5, y=12, team=1)  # dist = 13
         action = decide(self.brain, self.agent, self.m, [self.agent, enemy])
         assert action is Action.MOVE_UP
 
     def test_approach_targets_nearest_enemy(self):
         """複数の可視敵がいる場合、最近接の敵へ向かう"""
-        near = make_agent(agent_id=2, x=5, y=32, team=1)  # dist = 7
-        far  = make_agent(agent_id=3, x=5, y=33, team=1)  # dist = 8
-        # near の方向 → どちらも真下なので MOVE_DOWN が期待値
-        # ここでは far だけなら MOVE_DOWN、near だけでも MOVE_DOWN なので、
-        # nearが選ばれているか確認するため横に敵を置く
-        near2 = make_agent(agent_id=4, x=5, y=32, team=1)  # dist = 7 (true near)
-        far2  = make_agent(agent_id=5, x=2, y=25, team=1)  # dist = 3 → lockon 内
-        # far2 は dist=3 → lockon → nearestはfar2 → STAY になってしまう
-        # 別パターン: near が左(dist=7), far が下(dist=8)
+        # APPROACH ゾーン: 12 < dist ≤ 16
         m = make_map()
         agent = make_agent(x=5, y=25, team=0)
-        left_enemy = make_agent(agent_id=2, x=0, y=25,  team=1)  # dist = 5 lockon内
-        # lockon内なら STAY になる → APPROACH を確認するため dist=7 と dist=8 にする
-        en7 = make_agent(agent_id=10, x=5, y=32, team=1)   # dist = 7 (nearest)
-        en8 = make_agent(agent_id=11, x=5, y=33, team=1)   # dist = 8
-        action = decide(self.brain, agent, m, [agent, en7, en8])
-        # nearest = en7 (dist=7) → 下 → MOVE_DOWN
+        en13 = make_agent(agent_id=10, x=5, y=38, team=1)   # dist = 13 (nearest)
+        en15 = make_agent(agent_id=11, x=5, y=40, team=1)   # dist = 15
+        action = decide(self.brain, agent, m, [agent, en13, en15])
+        # nearest = en13 (dist=13) → 下 → MOVE_DOWN
         assert action is Action.MOVE_DOWN
 
     def test_approach_not_triggered_outside_search(self):
-        """索敵範囲外(dist=9)の敵には APPROACH しない → PATROL"""
-        enemy = make_agent(agent_id=2, x=5, y=34, team=1)  # dist = 9 > 8
+        """索敵範囲外(dist=17)の敵には APPROACH しない → PATROL"""
+        enemy = make_agent(agent_id=2, x=5, y=42, team=1)  # dist = 17 > 16
         action = decide(self.brain, self.agent, self.m, [self.agent, enemy])
         assert action is Action.MOVE_DOWN   # PATROL モードでターゲット方向
 
