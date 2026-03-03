@@ -77,7 +77,7 @@ BorderBreakシミュレーター/
 │   ├── test_simulation_boost.py            # Simulation ブースト巡航ロジックのテスト（23件）
 │   ├── test_simulation_reload.py           # Simulation リロードロジックのテスト（11件）
 │   ├── test_agent_parts.py                 # Agent per-agent パラメータのテスト（25件）
-│   ├── test_assemble.py                    # assemble_agent_params のテスト（76件）
+│   ├── test_assemble.py                    # assemble_agent_params のテスト（81件）
 │   ├── test_simulation_parts.py            # Simulation + per-agent パラメータ統合テスト（20件）
 │   ├── test_weapon_calc.py                 # bb_weapon_calc のテスト（44件）
 │   ├── test_bb_base_and_brand.py           # bb_base_and_brand のテスト（41件）
@@ -91,7 +91,7 @@ BorderBreakシミュレーター/
         └── events_YYYYMMDD_HHMMSS.csv
 ```
 
-**テスト合計: 668 件（全件グリーン）**
+**テスト合計: 673 件（全件グリーン）**
 
 ### シミュレーターモジュールの依存関係
 
@@ -425,6 +425,8 @@ capture_gauge = clamp(capture_gauge + net, -10, +10)
 - [x] ブーストテスト 70 件（test_agent_boost / test_simulation_boost / test_assemble 拡張）
 - [x] T-4: リロードタイマーの実装（clip / reload_steps / ammo_in_clip / reload_timer、assemble_agent_params に2キー追加）
 - [x] リロードテスト 22 件（test_agent_reload / test_simulation_reload / test_assemble 拡張）
+- [x] T-5: arm.reloadRate の反映（`reload_steps = round(weapon.reload × reloadRate.param / 100)`）
+- [x] T-5 テスト 5 件（test_assemble: TestAssembleReloadRate 追加）
 - [x] steps_*.csv へのエージェント座標記録（`a{id}_x` / `a{id}_y` / `a{id}_alive` / `a{id}_hp_pct` / `a{id}_team` / `a{id}_respawn`）
 - [x] `replay.py` — steps_*.csv からシミュレーション動画を生成（`.gif` / `.mp4` 対応、Pillow 必須）
 - [x] `run()` の GUI / コンソール出力デフォルトを OFF に変更（`step_delay=0.0`, `verbose=False`）
@@ -475,11 +477,10 @@ capture_gauge = clamp(capture_gauge + net, -10, +10)
 - `_process_respawns()` でリスポーン時に `ammo_in_clip = clip`, `reload_timer = 0`
 - `assemble_agent_params()` に `clip`, `reload_steps` を追加（13キー）
 
-#### T-5. arm: reloadRate の反映
-- **前提**: T-4 実装後
-- `rank_param["reloadRate"]` で arm の reloadRate ランク → 倍率変換
-- `reload_steps = round(weapon.reload × reloadRate.param)` のように計算
-- `assemble_agent_params()` または AgentLoadout 構築時に適用
+#### T-5. arm: reloadRate の反映 ✅ 実装済み
+- `rank_param["reloadRate"]` でパーセント値（S-=59.5% 〜 C-=100% 〜 E-=140%）を取得
+- `reload_steps = round(weapon.reload × reloadRate.param / 100)` で調整
+- `assemble_agent_params()` で `draw.arm.reloadRate.param` を参照（欠損時は 100.0 でフォールバック）
 
 #### T-6. precision → hit_rate の武器側反映
 - **前提**: T-2 実装後
@@ -531,7 +532,7 @@ T-2（aim→hit_rate）       ✅ 実装済み
 T-3（ブースト巡航）        ✅ 実装済み
 T-3.5（セルサイズ変更）    ✅ 実装済み
 T-4（リロード）            ✅ 実装済み ← T-5, T-7 の前提
-T-5（reloadRate反映）     T-4 の後
+T-5（reloadRate反映）     ✅ 実装済み
 T-6（precision→hit_rate） T-2 の後
 T-7（ammo弾切れ）         T-4 の後
 T-8（ロール選択）          独立（T-2, T-4 実装後に効果大）
@@ -550,7 +551,7 @@ T-11（積載量）             独立
 | ✅ | T-3.5 セルサイズ変更 | 10m→5m で walk/dash の速度分解能が向上 |
 | ✅ | T-4 リロードタイマー | 武器スペックの差を最もよく反映できる |
 | 1 | T-8 ロール選択戦略 | T-1/T-2/T-4 実装後に複数ロール混成が意味を持つ |
-| 2 | T-5 reloadRate反映 | T-4 があれば追加コスト小 |
+| ✅ | T-5 reloadRate反映 | T-4 があれば追加コスト小 |
 | 5 | T-7 ammo弾切れ | T-4 があれば追加コスト小 |
 | 6 | T-6, T-10, T-11 | 状況に応じて |
 | 後 | T-9 スペシャル | 実装コスト高、優先度は最終段階 |

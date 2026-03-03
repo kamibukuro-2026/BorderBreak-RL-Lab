@@ -225,7 +225,10 @@ def assemble_agent_params(
     # T-4: 弾倉容量とリロード時間
     clip = int(main_weapon.get("clip", 0))
     reload_val = main_weapon.get("reload", 0)
-    reload_steps = round(float(reload_val)) if reload_val else 0
+    # T-5: arm.reloadRate.param（%）でリロード時間を調整（欠損時 100.0 = 変化なし）
+    arm_draw = calc_result.get("draw", {}).get("arm", {})
+    reload_rate_param = arm_draw.get("reloadRate", {}).get("param") or 100.0
+    reload_steps = round(float(reload_val) * reload_rate_param / 100) if reload_val else 0
 
     return {
         "max_hp": max_hp,

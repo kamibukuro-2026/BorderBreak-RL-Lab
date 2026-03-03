@@ -32,7 +32,7 @@ BASE B（チームB）
 - **同時解決戦闘** — 全エージェントの射撃を一括計算してから適用（相打ちあり）
 - **CSV ログ出力** — ステップ・イベントの2種類のログを自動保存、分析に利用可能
 - **パーツ・武器データ管理** — 実際のゲームデータを基にした機体パラメータ計算（セットボーナス・強化チップ・重量ペナルティ・武器派生パラメータ）
-- **668 件のユニットテスト** — TDD で開発、全件グリーン
+- **673 件のユニットテスト** — TDD で開発、全件グリーン
 
 ---
 
@@ -170,7 +170,7 @@ BorderBreakシミュレーター/
 │   ├── test_simulation_boost.py      # Simulation ブースト巡航ロジックのテスト（23件）
 │   ├── test_simulation_reload.py     # Simulation リロードロジックのテスト（11件）
 │   ├── test_agent_parts.py           # Agent per-agent パラメータのテスト（25件）
-│   ├── test_assemble.py              # assemble_agent_params のテスト（76件）
+│   ├── test_assemble.py              # assemble_agent_params のテスト（81件）
 │   ├── test_simulation_parts.py      # Simulation + per-agent パラメータ統合テスト（20件）
 │   ├── test_weapon_calc.py           # bb_weapon_calc のテスト（44件）
 │   ├── test_bb_base_and_brand.py     # bb_base_and_brand のテスト（41件）
@@ -291,7 +291,7 @@ weapon = calc_full(catalog, LoadoutKeys("a","a","a","a"), weapons={"main": ref})
 | タスク | 状態 | 内容 |
 |---|---|---|
 | T-4 リロードタイマー | ✅ 完了 | 弾倉（clip）→ 射撃 → リロード（reload_steps）のサイクルを実装。`clip=0` で後方互換 |
-| T-5 reloadRate 反映 | 未着手 | arm の `reloadRate` ランクをリロード時間に乗算（T-4 の後） |
+| T-5 reloadRate 反映 | ✅ 完了 | arm の `reloadRate` ランク（%）をリロード時間に乗算。S-=59.5%〜E-=140%（T-4 の後） |
 | T-6 precision 反映 | 未着手 | 武器の `precision` ランクを命中率に反映（T-2 の後） |
 
 ### フェーズ3: 弾切れと補給（優先度：中〜低）

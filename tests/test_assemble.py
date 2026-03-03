@@ -663,3 +663,53 @@ class TestAssembleReload:
         params = assemble_agent_params(result)
         assert params["clip"] == 0
         assert params["reload_steps"] == 0
+
+
+# ─────────────────────────────────────────
+# T-5: arm.reloadRate による reload_steps 調整テスト
+# ─────────────────────────────────────────
+def make_calc_result_with_reload_rate(
+    reload_val: float = 2.0,
+    reload_rate_param: float = 100.0,
+    **kwargs,
+) -> dict:
+    """draw.arm.reloadRate.param を持つ calc_result を返す"""
+    result = make_calc_result(**kwargs)
+    result["weapons"]["main"]["reload"] = reload_val
+    result["draw"]["arm"] = {"reloadRate": {"param": reload_rate_param}}
+    return result
+
+
+class TestAssembleReloadRate:
+
+    def test_reload_rate_100_no_change(self):
+        """reloadRate.param=100（C-ランク）→ reload_steps 変化なし"""
+        result = make_calc_result_with_reload_rate(reload_val=2.5, reload_rate_param=100.0)
+        params = assemble_agent_params(result)
+        assert params["reload_steps"] == round(2.5 * 100.0 / 100)  # 2
+
+    def test_reload_rate_b_rank_shortens(self):
+        """reloadRate.param=82（Bランク）→ round(2.5 × 0.82) = 2"""
+        result = make_calc_result_with_reload_rate(reload_val=2.5, reload_rate_param=82.0)
+        params = assemble_agent_params(result)
+        assert params["reload_steps"] == round(2.5 * 82.0 / 100)  # 2
+
+    def test_reload_rate_s_minus_shortens_significantly(self):
+        """reloadRate.param=59.5（S-ランク）→ round(2.0 × 0.595) = 1"""
+        result = make_calc_result_with_reload_rate(reload_val=2.0, reload_rate_param=59.5)
+        params = assemble_agent_params(result)
+        assert params["reload_steps"] == round(2.0 * 59.5 / 100)  # 1
+
+    def test_reload_rate_e_minus_extends(self):
+        """reloadRate.param=140（E-ランク）→ round(2.0 × 1.40) = 3"""
+        result = make_calc_result_with_reload_rate(reload_val=2.0, reload_rate_param=140.0)
+        params = assemble_agent_params(result)
+        assert params["reload_steps"] == round(2.0 * 140.0 / 100)  # 3
+
+    def test_reload_rate_missing_arm_backward_compat(self):
+        """arm フィールドが欠損 → reload_rate=100%（後方互換）"""
+        result = make_calc_result()
+        result["weapons"]["main"]["reload"] = 2.0
+        # draw.arm なし → デフォルト 100.0 適用
+        params = assemble_agent_params(result)
+        assert params["reload_steps"] == 2  # round(2.0 × 1.00)
