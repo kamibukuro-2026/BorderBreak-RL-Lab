@@ -32,7 +32,7 @@ BASE B（チームB）
 - **同時解決戦闘** — 全エージェントの射撃を一括計算してから適用（相打ちあり）
 - **CSV ログ出力** — ステップ・イベントの2種類のログを自動保存、分析に利用可能
 - **パーツ・武器データ管理** — 実際のゲームデータを基にした機体パラメータ計算（セットボーナス・強化チップ・重量ペナルティ・武器派生パラメータ）
-- **673 件のユニットテスト** — TDD で開発、全件グリーン
+- **680 件のユニットテスト** — TDD で開発、全件グリーン
 
 ---
 
@@ -170,7 +170,7 @@ BorderBreakシミュレーター/
 │   ├── test_simulation_boost.py      # Simulation ブースト巡航ロジックのテスト（23件）
 │   ├── test_simulation_reload.py     # Simulation リロードロジックのテスト（11件）
 │   ├── test_agent_parts.py           # Agent per-agent パラメータのテスト（25件）
-│   ├── test_assemble.py              # assemble_agent_params のテスト（81件）
+│   ├── test_assemble.py              # assemble_agent_params のテスト（88件）
 │   ├── test_simulation_parts.py      # Simulation + per-agent パラメータ統合テスト（20件）
 │   ├── test_weapon_calc.py           # bb_weapon_calc のテスト（44件）
 │   ├── test_bb_base_and_brand.py     # bb_base_and_brand のテスト（41件）
@@ -292,7 +292,7 @@ weapon = calc_full(catalog, LoadoutKeys("a","a","a","a"), weapons={"main": ref})
 |---|---|---|
 | T-4 リロードタイマー | ✅ 完了 | 弾倉（clip）→ 射撃 → リロード（reload_steps）のサイクルを実装。`clip=0` で後方互換 |
 | T-5 reloadRate 反映 | ✅ 完了 | arm の `reloadRate` ランク（%）をリロード時間に乗算。S-=59.5%〜E-=140%（T-4 の後） |
-| T-6 precision 反映 | 未着手 | 武器の `precision` ランクを命中率に反映（T-2 の後） |
+| T-6 precision 反映 | ✅ 完了 | 武器の `precision` ランクを命中率に独立加算（aim + precision、欠損時は B ランク相当） |
 
 ### フェーズ3: 弾切れと補給（優先度：中〜低）
 
@@ -300,13 +300,26 @@ weapon = calc_full(catalog, LoadoutKeys("a","a","a","a"), weapons={"main": ref})
 |---|---|
 | T-7 ammo 弾切れ | 総弾倉数（ammo）を使い切ったら射撃不能。リスポーン時に補充（T-4 の後） |
 
-### フェーズ4: ロール選択戦略（優先度：中）
+### フェーズ4: 補助武器（優先度：高）
 
 | タスク | 内容 |
 |---|---|
-| T-8 リスポーン時ロール選択 | `AgentLoadout.roles` からリスポーン時に次ロールを選択する戦略クラスの実装 |
+| T-12 補助武器（Sub Weapon） | ロール別補助武器の実装（近接/ジャマー/スキャナー/弾薬補給）。Brain 状態に `USE_SUB` を追加 |
 
-### フェーズ5: 高度な機能（優先度：低）
+### フェーズ5: ロール選択戦略（優先度：中）
+
+| タスク | 内容 |
+|---|---|
+| T-8 リスポーン時ロール選択 | `AgentLoadout.roles` からリスポーン時に次ロールを選択する戦略クラスの実装（T-12 の後） |
+
+### フェーズ6: 高度な戦闘仕様（優先度：中）
+
+| タスク | 内容 |
+|---|---|
+| T-13 被索敵状態に応じた戦闘判定 | 自チームの誰かが索敵している敵のみ射撃可能。`Agent.detected` を活用した視界共有システム |
+| T-14 戦況イベントによる戦略切り替え | プラント占拠・撃破などのイベントを `Brain.on_event()` で受け取り、動的に戦略を変更 |
+
+### フェーズ7: 高度な機能（優先度：低）
 
 | タスク | 内容 |
 |---|---|
