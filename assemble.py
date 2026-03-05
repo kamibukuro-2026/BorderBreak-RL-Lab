@@ -123,6 +123,16 @@ _HIT_RATE_MIN      = 0.40   # hit_rate の下限
 _HIT_RATE_MAX      = 1.00   # hit_rate の上限
 # T-3: ブースト回復定数（constants.BOOST_REGEN_PER_STEP と同値、循環 import 回避）
 _BOOST_REGEN_PER_STEP = 15.0
+# T-6: weapon precision → hit_rate 変換（aim と同じランクテーブルを流用）
+_PRECISION_PARAM_BASE = 12.0   # B ランク（補正ゼロの基準）
+_PRECISION_SCALE      = 0.006  # AIM_SCALE と同スケール
+_PRECISION_RANK_PARAM: dict = {
+    "S": 37, "S-": 34, "A+": 30, "A": 25, "A-": 20,
+    "B+": 16, "B": 12, "B-": 8,
+    "C+": 4,  "C": 0,  "C-": -4,
+    "D+": -8, "D": -12, "D-": -16,
+    "E+": -20, "E": -24, "E-": 0.0,
+}
 
 
 def assemble_agent_params(
@@ -191,11 +201,18 @@ def assemble_agent_params(
 
     # aim.param → hit_rate（B ランク aim=12 が標準 0.80）
     aim_param = head.get("aim", {}).get("param")
+    # T-6: weapon precision の取得（リスト型は先頭値、欠損時は B ランク基準）
+    prec_raw = main_weapon.get("precision")
+    if isinstance(prec_raw, list):
+        prec_raw = prec_raw[0]
+    prec_param = _PRECISION_RANK_PARAM.get(prec_raw, _PRECISION_PARAM_BASE) if prec_raw else _PRECISION_PARAM_BASE
+    prec_bonus = (prec_param - _PRECISION_PARAM_BASE) * _PRECISION_SCALE
+    # aim + precision の独立加算（aim 欠損時は default_hit_rate を起点にして後方互換維持）
     if aim_param is not None:
-        raw = _HIT_RATE_DEFAULT + (aim_param - _AIM_PARAM_BASE) * _AIM_SCALE
-        hit_rate = float(max(_HIT_RATE_MIN, min(_HIT_RATE_MAX, raw)))
+        raw = _HIT_RATE_DEFAULT + (aim_param - _AIM_PARAM_BASE) * _AIM_SCALE + prec_bonus
     else:
-        hit_rate = float(default_hit_rate)
+        raw = float(default_hit_rate) + prec_bonus
+    hit_rate = float(max(_HIT_RATE_MIN, min(_HIT_RATE_MAX, raw)))
 
     # weapons.main.rate → shots_per_step（最低 1）
     rate = main_weapon.get("rate")
