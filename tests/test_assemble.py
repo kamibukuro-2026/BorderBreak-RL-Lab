@@ -443,6 +443,64 @@ class TestAssembleAgentParamsHitRate:
 
 
 # ─────────────────────────────────────────
+# T-6: weapon precision による hit_rate 補正テスト
+# ─────────────────────────────────────────
+def make_calc_result_with_precision(precision: str = "B", **kwargs) -> dict:
+    """weapons.main.precision を持つ calc_result を返す"""
+    result = make_calc_result(**kwargs)
+    result["weapons"]["main"]["precision"] = precision
+    return result
+
+
+class TestAssembleAgentParamsPrecision:
+
+    def test_precision_b_no_change(self):
+        """precision=B（基準）→ hit_rate 変化なし（0.64）"""
+        result = make_calc_result_with_precision("B", aim_param=12.0)
+        params = assemble_agent_params(result)
+        assert params["hit_rate"] == pytest.approx(HIT_RATE)
+
+    def test_precision_high_rank_increases_hit_rate(self):
+        """precision=S(param=37) → hit_rate = 0.64 + (37-12)*0.006 = 0.79"""
+        result = make_calc_result_with_precision("S", aim_param=12.0)
+        params = assemble_agent_params(result)
+        assert params["hit_rate"] == pytest.approx(HIT_RATE + (37 - 12) * 0.006)
+
+    def test_precision_low_rank_decreases_hit_rate(self):
+        """precision=E(param=-24) → hit_rate = 0.64 + (-24-12)*0.006 = 0.424"""
+        result = make_calc_result_with_precision("E", aim_param=12.0)
+        params = assemble_agent_params(result)
+        assert params["hit_rate"] == pytest.approx(HIT_RATE + (-24 - 12) * 0.006)
+
+    def test_aim_and_precision_both_contribute(self):
+        """aim=B+(param=16) + precision=A(param=25) → 両方の補正が加算"""
+        result = make_calc_result_with_precision("A", aim_param=16.0)
+        params = assemble_agent_params(result)
+        expected = HIT_RATE + (16 - 12) * 0.006 + (25 - 12) * 0.006
+        assert params["hit_rate"] == pytest.approx(expected)
+
+    def test_precision_missing_acts_as_b_rank(self):
+        """precision 未設定 → B ランク相当（prec_bonus=0）、aim のみ有効"""
+        result = make_calc_result(aim_param=16.0)
+        params = assemble_agent_params(result)
+        expected = HIT_RATE + (16 - 12) * 0.006
+        assert params["hit_rate"] == pytest.approx(expected)
+
+    def test_precision_list_uses_first_value(self):
+        """precision がリスト → 先頭値を使用"""
+        result = make_calc_result(aim_param=12.0)
+        result["weapons"]["main"]["precision"] = ["S", "C"]
+        params = assemble_agent_params(result)
+        assert params["hit_rate"] == pytest.approx(HIT_RATE + (37 - 12) * 0.006)
+
+    def test_hit_rate_clamped_at_max_with_both(self):
+        """aim が非常に高い + precision=S → 上限 1.0 にクランプ"""
+        result = make_calc_result_with_precision("S", aim_param=200.0)
+        params = assemble_agent_params(result)
+        assert params["hit_rate"] == pytest.approx(1.0)
+
+
+# ─────────────────────────────────────────
 # shots_per_step の抽出テスト
 # ─────────────────────────────────────────
 class TestAssembleAgentParamsShotsPerStep:
