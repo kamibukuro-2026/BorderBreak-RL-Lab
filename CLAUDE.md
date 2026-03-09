@@ -67,23 +67,24 @@ BorderBreakシミュレーター/
 │   ├── test_core.py                        # Core クラスのテスト（25件）
 │   ├── test_plant.py                       # Plant クラスのテスト（42件）
 │   ├── test_agent.py                       # Agent クラスのテスト（53件）
-│   ├── test_agent_boost.py                 # Agent ブーストパラメータのテスト（20件）
+│   ├── test_agent_boost.py                 # Agent ブーストパラメータのテスト（15件）
 │   ├── test_agent_reload.py                # Agent リロードパラメータのテスト（8件）
 │   ├── test_brain.py                       # Brain / GreedyBaseAttackBrain のテスト（28件）
 │   ├── test_plant_capture_brain.py         # PlantCaptureBrain のテスト（25件）
 │   ├── test_aggressive_combat_brain.py     # AggressiveCombatBrain のテスト（18件）
 │   ├── test_detection.py                   # 被索敵状態のテスト（20件）
+│   ├── test_hit_fraction.py                # _calc_hit_fraction() のテスト（20件）
 │   ├── test_simulation.py                  # Simulation 戦闘ロジックのテスト（64件）
-│   ├── test_simulation_boost.py            # Simulation ブースト巡航ロジックのテスト（23件）
+│   ├── test_simulation_boost.py            # Simulation ブースト巡航ロジックのテスト（21件）
 │   ├── test_simulation_reload.py           # Simulation リロードロジックのテスト（11件）
-│   ├── test_agent_parts.py                 # Agent per-agent パラメータのテスト（25件）
-│   ├── test_assemble.py                    # assemble_agent_params のテスト（81件）
-│   ├── test_simulation_parts.py            # Simulation + per-agent パラメータ統合テスト（20件）
-│   ├── test_weapon_calc.py                 # bb_weapon_calc のテスト（44件）
+│   ├── test_agent_parts.py                 # Agent per-agent パラメータのテスト（44件）
+│   ├── test_assemble.py                    # assemble_agent_params のテスト（88件）
+│   ├── test_simulation_parts.py            # Simulation + per-agent パラメータ統合テスト（18件）
+│   ├── test_weapon_calc.py                 # bb_weapon_calc のテスト（43件）
 │   ├── test_bb_base_and_brand.py           # bb_base_and_brand のテスト（41件）
-│   ├── test_bb_brbonus_calcparam_limit.py  # bb_brbonus_calcparam_limit のテスト（37件）
+│   ├── test_bb_brbonus_calcparam_limit.py  # bb_brbonus_calcparam_limit のテスト（55件）
 │   ├── test_bb_calc_movement.py            # bb_calc_movement のテスト（16件）
-│   ├── test_catalog.py                     # catalog のテスト（16件）
+│   ├── test_catalog.py                     # catalog のテスト（20件）
 │   └── test_replay.py                      # replay_video() のテスト（5件）
 └── logs/
     └── dev/             # 開発用 CSV ログ出力先
@@ -91,7 +92,7 @@ BorderBreakシミュレーター/
         └── events_YYYYMMDD_HHMMSS.csv
 ```
 
-**テスト合計: 673 件（全件グリーン）**
+**テスト合計: 680 件（全件グリーン）**
 
 ### シミュレーターモジュールの依存関係
 
@@ -253,6 +254,7 @@ ACTION_DELTA: dict[Action, tuple[int, int]]  # (dx, dy)
 | `_draw(ax, title)` | マップ・プラント・エージェント・コアHPバーを描画 |
 | `visualize(title)` | 静止画として `plt.show()` で表示 |
 | `_execute_action(agent, action)` | `CELLS_PER_STEP` 分だけ移動（壁で中断） |
+| `_calc_hit_fraction(shooter, target)` | 射撃命中率（0〜1）を決定論的に計算。ロックオン内ボーナス・距離ペナルティ・rate_floor を考慮 |
 | `_resolve_combat()` | 同時解決で射撃ダメージ適用、撃破判定 |
 | `_resolve_time_limit()` | 制限時間到達時の勝敗判定（コアHP比較） |
 | `_process_respawns()` | タイマー更新・リスポーン・コアキルペナルティ |
@@ -427,6 +429,8 @@ capture_gauge = clamp(capture_gauge + net, -10, +10)
 - [x] リロードテスト 22 件（test_agent_reload / test_simulation_reload / test_assemble 拡張）
 - [x] T-5: arm.reloadRate の反映（`reload_steps = round(weapon.reload × reloadRate.param / 100)`）
 - [x] T-5 テスト 5 件（test_assemble: TestAssembleReloadRate 追加）
+- [x] T-6: weapon precision → hit_rate の反映（独立加算モデル、`data/rank_param.json` に precision テーブル追加）
+- [x] T-6 テスト 7 件（test_assemble: TestAssembleAgentParamsPrecision 追加）
 - [x] steps_*.csv へのエージェント座標記録（`a{id}_x` / `a{id}_y` / `a{id}_alive` / `a{id}_hp_pct` / `a{id}_team` / `a{id}_respawn`）
 - [x] `replay.py` — steps_*.csv からシミュレーション動画を生成（`.gif` / `.mp4` 対応、Pillow 必須）
 - [x] `run()` の GUI / コンソール出力デフォルトを OFF に変更（`step_delay=0.0`, `verbose=False`）
@@ -482,10 +486,12 @@ capture_gauge = clamp(capture_gauge + net, -10, +10)
 - `reload_steps = round(weapon.reload × reloadRate.param / 100)` で調整
 - `assemble_agent_params()` で `draw.arm.reloadRate.param` を参照（欠損時は 100.0 でフォールバック）
 
-#### T-6. precision → hit_rate の武器側反映
-- **前提**: T-2 実装後
-- 武器の `precision` ランクも命中率に影響させる
-- head の aim（パーツ）と武器の precision を組み合わせて最終 hit_rate を算出
+#### T-6. precision → hit_rate の武器側反映 ✅ 実装済み
+- 武器の `precision` ランクを hit_rate に独立加算
+  - `hit_rate = clamp(0.64 + (aim-12)×0.006 + (prec-12)×0.006, 0.40, 1.00)`
+  - aim 欠損時は `default_hit_rate` を起点に precision のみ加算（後方互換維持）
+  - リスト型 precision（スイッチ武器）は先頭値を使用
+- `data/rank_param.json` に precision テーブル追加（aim と同値、B=12 が基準）
 
 ### フェーズ3: 弾切れと補給（優先度：中〜低）
 
@@ -498,9 +504,28 @@ capture_gauge = clamp(capture_gauge + net, -10, +10)
 - 弾切れ時の Brain の行動を決定（Brain に弾切れ状態を渡す必要あり）
 - リスポーン時に mag_count をフルに補充
 
-### フェーズ4: ロール選択戦略の実装（優先度：中）
+### フェーズ4: 補助武器の実装（優先度：中）← T-8 の前提
+
+#### T-12. 補助武器（Sub Weapon）の実装
+- **前提**: T-8（ロール選択）を意味のあるものにするための先行タスク
+- **ロールごとの補助武器:**
+
+| ロール | 補助武器 |
+|---|---|
+| ASSAULT | 近接武器（メレー）|
+| HEAVY_ASSAULT | 近接武器 + 妨害補助アイテム（選択制） |
+| SUPPORT | 索敵装備 または 弾薬補給装置（選択制） |
+| SNIPER | 妨害補助アイテム または 索敵装備（選択制） |
+
+- `SubWeaponType` Enum を `game_types.py` に追加（`MELEE` / `JAMMER` / `SCANNER` / `AMMO_PACK` など）
+- `RoleLoadout` に `sub_weapon: SubWeaponType` フィールドを追加
+- 補助武器の効果をシミュレーション内で処理（Brain の使用判断含む）
+- Brain に補助武器使用状態（`USE_SUB` など）を追加
+
+### フェーズ5: ロール選択戦略の実装（優先度：中）
 
 #### T-8. リスポーン時のロール選択
+- **前提**: T-12（補助武器）実装後
 - **現状**: AgentLoadout.roles は定義済みだがリスポーン時にロールが変わらない
 - **目標**: リスポーン時に AgentLoadout.roles から次ロールを選んで適用する
 - ロール選択戦略インターフェースを決定（例: `RoleSelector` 基底クラス）
@@ -510,7 +535,27 @@ capture_gauge = clamp(capture_gauge + net, -10, +10)
 - `_process_respawns()` でリスポーン時にロール選択 → `agent.role`, `agent.dps`, `agent.brain`, `agent.hit_rate` を更新
 - `AgentLoadout` にロール選択戦略（`role_selector`）フィールドを追加
 
-### フェーズ5: 高度なパラメータ（優先度：低）
+### フェーズ6: 高度な戦闘仕様（優先度：中）
+
+#### T-13. 被索敵状態に応じた戦闘判定
+- **現状**: ロックオン範囲内なら無条件に射撃
+- **目標**: 索敵状態を戦闘判定に組み込む
+  - 自軍の誰かが敵を索敵している（`enemy.detected = True`）場合のみ射撃可能
+  - `detected = False` の敵は位置不明 → ロックオン範囲内でも射撃不可
+- **実装箇所**: `Simulation._resolve_combat()` の射撃条件チェックに `target.detected` を追加
+- **Brain への影響**: ATTACK 状態に入る条件にも `enemy.detected` を考慮
+- 被索敵による奇襲ダメージボーナス等の発展的仕様も検討可能
+
+#### T-14. 戦況イベントによる戦略切り替え
+- **目標**: プラント占拠・敵撃破などのイベント発生時に Brain の戦略を動的に切り替える
+- **実装方針:**
+  - `Brain.on_event(event_type, game_state)` コールバックインターフェースを追加
+  - `Simulation._log_event()` 内でイベント発生時に関連エージェントの `brain.on_event()` を呼ぶ
+  - または `Brain.decide()` が試合状態（プラント制圧状況・コア残HP等）を参照して自律判断
+  - 例: プラントが全占拠 → 攻撃優先 Brain に切り替え、自コアが危機域 → 防衛 Brain に切り替え
+- **前提**: T-8（ロール選択）実装後に最も効果的
+
+### フェーズ7: 高度なパラメータ（優先度：低）
 
 #### T-9. スペシャル武器（SP ゲージ）の実装
 - body: `spSupply`（SP回復速度）と武器の `spCharge`/`spReboot` の管理
@@ -533,12 +578,15 @@ T-3（ブースト巡航）        ✅ 実装済み
 T-3.5（セルサイズ変更）    ✅ 実装済み
 T-4（リロード）            ✅ 実装済み ← T-5, T-7 の前提
 T-5（reloadRate反映）     ✅ 実装済み
-T-6（precision→hit_rate） T-2 の後
+T-6（precision→hit_rate） ✅ 実装済み
 T-7（ammo弾切れ）         T-4 の後
-T-8（ロール選択）          独立（T-2, T-4 実装後に効果大）
+T-8（ロール選択）          T-12 の後（T-2, T-4 実装後に効果大）
 T-9（スペシャル）          T-8 の後
 T-10（範囲ダメージ）       独立
 T-11（積載量）             独立
+T-12（補助武器）           独立 ← T-8 の前提
+T-13（被索敵戦闘）         独立（T-8 実装後に効果大）
+T-14（戦略切り替え）       T-8 の後（戦況反応型 Brain はロール切り替えと組み合わせて使う）
 ```
 
 ### 推奨実装順
@@ -550,10 +598,14 @@ T-11（積載量）             独立
 | ✅ | T-3 ブースト巡航 | 実ゲームの移動の大半はダッシュ。速度差の再現 |
 | ✅ | T-3.5 セルサイズ変更 | 10m→5m で walk/dash の速度分解能が向上 |
 | ✅ | T-4 リロードタイマー | 武器スペックの差を最もよく反映できる |
-| 1 | T-8 ロール選択戦略 | T-1/T-2/T-4 実装後に複数ロール混成が意味を持つ |
-| ✅ | T-5 reloadRate反映 | T-4 があれば追加コスト小 |
-| 5 | T-7 ammo弾切れ | T-4 があれば追加コスト小 |
-| 6 | T-6, T-10, T-11 | 状況に応じて |
+| ✅ | T-5 reloadRate 反映 | T-4 があれば追加コスト小 |
+| ✅ | T-6 precision → hit_rate | aim と precision の相乗効果でロール差が明確化 |
+| 1 | T-12 補助武器 | ロール別サブ武器の定義。T-8（ロール選択）の直接前提 |
+| 2 | T-8 ロール選択戦略 | T-12 実装後に複数ロール混成が意味を持つ |
+| 3 | T-13 被索敵戦闘 | 被索敵状態の活用で戦略的深度が増す |
+| 4 | T-14 戦略切り替え | 戦況反応型 Brain でシミュレーション展開が多様化 |
+| 5 | T-7 ammo 弾切れ | T-4 があれば追加コスト小 |
+| 6 | T-10, T-11 | 状況に応じて |
 | 後 | T-9 スペシャル | 実装コスト高、優先度は最終段階 |
 
 ### 上位目標

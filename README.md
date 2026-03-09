@@ -160,23 +160,24 @@ BorderBreakシミュレーター/
 │   ├── test_core.py                  # Core クラスのテスト（25件）
 │   ├── test_plant.py                 # Plant クラスのテスト（42件）
 │   ├── test_agent.py                 # Agent クラスのテスト（53件）
-│   ├── test_agent_boost.py           # Agent ブーストパラメータのテスト（20件）
+│   ├── test_agent_boost.py           # Agent ブーストパラメータのテスト（15件）
 │   ├── test_agent_reload.py          # Agent リロードパラメータのテスト（8件）
 │   ├── test_brain.py                 # GreedyBaseAttackBrain のテスト（28件）
 │   ├── test_plant_capture_brain.py   # PlantCaptureBrain のテスト（25件）
 │   ├── test_aggressive_combat_brain.py  # AggressiveCombatBrain のテスト（18件）
 │   ├── test_detection.py             # 被索敵状態のテスト（20件）
+│   ├── test_hit_fraction.py          # _calc_hit_fraction() のテスト（20件）
 │   ├── test_simulation.py            # Simulation 戦闘ロジックのテスト（64件）
-│   ├── test_simulation_boost.py      # Simulation ブースト巡航ロジックのテスト（23件）
+│   ├── test_simulation_boost.py      # Simulation ブースト巡航ロジックのテスト（21件）
 │   ├── test_simulation_reload.py     # Simulation リロードロジックのテスト（11件）
-│   ├── test_agent_parts.py           # Agent per-agent パラメータのテスト（25件）
+│   ├── test_agent_parts.py           # Agent per-agent パラメータのテスト（44件）
 │   ├── test_assemble.py              # assemble_agent_params のテスト（88件）
-│   ├── test_simulation_parts.py      # Simulation + per-agent パラメータ統合テスト（20件）
-│   ├── test_weapon_calc.py           # bb_weapon_calc のテスト（44件）
+│   ├── test_simulation_parts.py      # Simulation + per-agent パラメータ統合テスト（18件）
+│   ├── test_weapon_calc.py           # bb_weapon_calc のテスト（43件）
 │   ├── test_bb_base_and_brand.py     # bb_base_and_brand のテスト（41件）
-│   ├── test_bb_brbonus_calcparam_limit.py  # bb_brbonus_calcparam_limit のテスト（37件）
+│   ├── test_bb_brbonus_calcparam_limit.py  # bb_brbonus_calcparam_limit のテスト（55件）
 │   ├── test_bb_calc_movement.py      # bb_calc_movement のテスト（16件）
-│   ├── test_catalog.py               # catalog のテスト（16件）
+│   ├── test_catalog.py               # catalog のテスト（20件）
 │   └── test_replay.py                # replay_video() のテスト（5件）
 └── logs/
     └── dev/                          # 開発用 CSV ログ出力先
