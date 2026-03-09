@@ -98,6 +98,7 @@ class TestPlantCaptureBrainAttack:
     def test_stay_when_enemy_in_lockon(self):
         """ロックオン距離内(dist ≤ 12)の敵 → STAY（射撃モード）"""
         enemy = make_agent(agent_id=2, x=5, y=30, team=1)  # dist = 5
+        enemy.detected = True
         action = decide(self.brain, self.agent, self.m, self.plants,
                         [self.agent, enemy])
         assert action is Action.STAY
@@ -105,6 +106,7 @@ class TestPlantCaptureBrainAttack:
     def test_stay_at_exact_lockon_boundary(self):
         """ロックオン距離ちょうど(dist = 12) → STAY"""
         enemy = make_agent(agent_id=2, x=5, y=37, team=1)  # dist = 12
+        enemy.detected = True
         action = decide(self.brain, self.agent, self.m, self.plants,
                         [self.agent, enemy])
         assert action is Action.STAY
@@ -121,6 +123,7 @@ class TestPlantCaptureBrainAttack:
     def test_attack_stays_even_with_uncaptured_plants(self):
         """未占拠プラントがあってもロックオン内敵がいれば ATTACK 優先"""
         enemy = make_agent(agent_id=2, x=5, y=29, team=1)  # dist = 4
+        enemy.detected = True
         action = decide(self.brain, self.agent, self.m, self.plants,
                         [self.agent, enemy])
         assert action is Action.STAY

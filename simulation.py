@@ -472,10 +472,12 @@ class Simulation:
                     agent.ammo_in_clip = agent.clip  # リロード完了・弾倉補充
                 continue
 
-            # ロックオン距離内の敵を抽出し最近接を選ぶ
+            # ロックオン距離内かつ被索敵済み（detected=True）の敵を抽出し最近接を選ぶ
+            # T-13: detected=False の敵は位置不明扱いのため射撃不可
             in_range = [
                 a for a in self.agents
-                if a.alive and a.team != agent.team and agent.in_lockon_range(a)
+                if a.alive and a.team != agent.team
+                and agent.in_lockon_range(a) and a.detected
             ]
             if not in_range:
                 continue

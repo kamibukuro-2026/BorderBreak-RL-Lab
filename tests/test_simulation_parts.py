@@ -49,6 +49,7 @@ class TestResolveCombatUsesAgentDps:
         sim = make_sim()
         add_agent(sim, 1, 0, 0, team=0, dps=5000, hit_rate=1.0)
         target = add_agent(sim, 2, 0, 5, team=1)        # dist=5 ≤ lockon_range_c(6)
+        target.detected = True
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
             sim._resolve_combat()
         assert target.hp == AGENT_HP - 5000
@@ -58,6 +59,7 @@ class TestResolveCombatUsesAgentDps:
         sim = make_sim()
         add_agent(sim, 1, 0, 0, team=0, dps=1000, hit_rate=1.0)
         target = add_agent(sim, 2, 0, 5, team=1)
+        target.detected = True
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
             sim._resolve_combat()
         assert target.hp == AGENT_HP - 1000
@@ -67,6 +69,7 @@ class TestResolveCombatUsesAgentDps:
         sim = make_sim()
         add_agent(sim, 1, 0, 0, team=0, hit_rate=1.0)  # dps=DPS
         target = add_agent(sim, 2, 0, 5, team=1)
+        target.detected = True
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
             sim._resolve_combat()
         assert target.hp == AGENT_HP - DPS
@@ -78,6 +81,7 @@ class TestResolveCombatUsesAgentDps:
         add_agent(sim, 1, 0, 0, team=0, dps=2000, hit_rate=1.0)
         add_agent(sim, 2, 1, 0, team=0, dps=4000, hit_rate=1.0)
         target = add_agent(sim, 3, 0, 5, team=1)       # 両方にとって lockon 範囲内
+        target.detected = True
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
             sim._resolve_combat()
         assert target.hp == AGENT_HP - 6000
@@ -96,6 +100,7 @@ class TestResolveCombatUsesAgentDps:
         sim = make_sim()
         add_agent(sim, 1, 0, 0, team=0, dps=AGENT_HP, hit_rate=1.0)
         target = add_agent(sim, 2, 0, 5, team=1)
+        target.detected = True
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
             sim._resolve_combat()
         assert target.hp == 0

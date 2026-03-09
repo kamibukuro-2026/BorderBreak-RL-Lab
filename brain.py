@@ -53,8 +53,9 @@ class GreedyBaseAttackBrain(Brain):
         if visible:
             nearest = min(visible, key=lambda e: agent.dist_cells(e))
 
-            # 状態1 ATTACK: ロックオン距離内 → 足を止めて射撃
-            if agent.in_lockon_range(nearest):
+            # 状態1 ATTACK: ロックオン距離内かつ被索敵済み → 足を止めて射撃
+            # T-13: detected=False の敵は位置不明扱い → ATTACK しない
+            if agent.in_lockon_range(nearest) and nearest.detected:
                 return Action.STAY
 
             # 状態2 APPROACH: 索敵範囲内 → 最も近い敵へ接近
@@ -116,8 +117,9 @@ class PlantCaptureBrain(GreedyBaseAttackBrain):
         if visible:
             nearest = min(visible, key=lambda e: agent.dist_cells(e))
 
-            # 状態1 ATTACK: ロックオン距離内 → 足を止めて射撃
-            if agent.in_lockon_range(nearest):
+            # 状態1 ATTACK: ロックオン距離内かつ被索敵済み → 足を止めて射撃
+            # T-13: detected=False の敵は位置不明扱い → ATTACK しない
+            if agent.in_lockon_range(nearest) and nearest.detected:
                 return Action.STAY
 
             # 状態2 APPROACH: 索敵範囲内 → 最も近い敵へ接近
@@ -161,8 +163,9 @@ class AggressiveCombatBrain(GreedyBaseAttackBrain):
         if visible:
             nearest = min(visible, key=lambda e: agent.dist_cells(e))
 
-            # 状態1 ATTACK: ロックオン距離内 → 足を止めて射撃
-            if agent.in_lockon_range(nearest):
+            # 状態1 ATTACK: ロックオン距離内かつ被索敵済み → 足を止めて射撃
+            # T-13: detected=False の敵は位置不明扱い → ATTACK しない
+            if agent.in_lockon_range(nearest) and nearest.detected:
                 return Action.STAY
 
             # 状態2 APPROACH: 索敵範囲内 → 最も近い敵へ接近

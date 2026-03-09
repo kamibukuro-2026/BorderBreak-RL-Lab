@@ -72,6 +72,7 @@ class TestResolveCombatReloadTimer:
         add_agent(sim, 1, 0, 0, team=0,
                   clip=30)  # ammo_in_clip=30（clip と同値で自動初期化）、reload_timer=0（デフォルト）
         enemy = add_agent(sim, 2, 0, 5, team=1)
+        enemy.detected = True
 
         hp_before = enemy.hp
         sim._resolve_combat()
@@ -103,7 +104,8 @@ class TestAmmoDecrement:
         sim = make_sim()
         shooter = add_agent(sim, 1, 0, 0, team=0,
                             clip=30, shots_per_step=1)  # ammo_in_clip=30（自動）
-        add_agent(sim, 2, 0, 5, team=1)
+        enemy = add_agent(sim, 2, 0, 5, team=1)
+        enemy.detected = True
 
         sim._resolve_combat()
 
@@ -114,7 +116,8 @@ class TestAmmoDecrement:
         sim = make_sim()
         shooter = add_agent(sim, 1, 0, 0, team=0,
                             clip=1, reload_steps=5, shots_per_step=1)  # ammo_in_clip=1（自動）
-        add_agent(sim, 2, 0, 5, team=1)
+        enemy = add_agent(sim, 2, 0, 5, team=1)
+        enemy.detected = True
 
         sim._resolve_combat()
 
@@ -125,7 +128,8 @@ class TestAmmoDecrement:
         sim = make_sim()
         shooter = add_agent(sim, 1, 0, 0, team=0,
                             clip=1, reload_steps=5, shots_per_step=1)  # ammo_in_clip=1（自動）
-        add_agent(sim, 2, 0, 5, team=1)
+        enemy = add_agent(sim, 2, 0, 5, team=1)
+        enemy.detected = True
 
         sim._resolve_combat()
 
@@ -136,6 +140,7 @@ class TestAmmoDecrement:
         sim = make_sim()
         shooter = add_agent(sim, 1, 0, 0, team=0)  # clip=0（デフォルト）
         enemy = add_agent(sim, 2, 0, 5, team=1)
+        enemy.detected = True
 
         hp_before = enemy.hp
         sim._resolve_combat()

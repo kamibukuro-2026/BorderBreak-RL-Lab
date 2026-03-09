@@ -85,6 +85,7 @@ class TestResolveCombat:
         sim = make_sim()
         add_agent(sim, 1, 0, 0, team=0, hit_rate=1.0)
         b = add_agent(sim, 2, 0, 5, team=1)   # dist = 5 ≤ 12
+        b.detected = True
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
             sim._resolve_combat()
         assert b.hp == AGENT_HP - DPS
@@ -94,10 +95,12 @@ class TestResolveCombat:
         sim1 = make_sim()
         add_agent(sim1, 1, 0, 0, team=0)
         b1 = add_agent(sim1, 2, 0, 5, team=1)
+        b1.detected = True
         sim1._resolve_combat()
         sim2 = make_sim()
         add_agent(sim2, 1, 0, 0, team=0)
         b2 = add_agent(sim2, 2, 0, 5, team=1)
+        b2.detected = True
         sim2._resolve_combat()
         assert b1.hp == b2.hp          # 毎回同じ結果
         assert b1.hp < AGENT_HP        # ダメージが入っている
@@ -119,6 +122,7 @@ class TestResolveCombat:
         dead_e  = add_agent(sim, 2, 0, 3, team=1)
         kill_agent(dead_e)                         # dist=3, dead
         live_e  = add_agent(sim, 3, 0, 5, team=1)  # dist=5, alive
+        live_e.detected = True
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
             sim._resolve_combat()
         assert dead_e.hp == 0        # dead のまま変化なし
@@ -139,6 +143,7 @@ class TestResolveCombat:
         sim = make_sim()
         add_agent(sim, 1, 0, 0, team=0, hit_rate=1.0)
         b = add_agent(sim, 2, 0, 5, team=1, hp=DPS)   # 1 発で撃破される HP
+        b.detected = True
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
             sim._resolve_combat()
         assert b.alive is False
@@ -148,6 +153,7 @@ class TestResolveCombat:
         sim = make_sim()
         add_agent(sim, 1, 0, 0, team=0, hit_rate=1.0)
         b = add_agent(sim, 2, 0, 5, team=1, hp=DPS)
+        b.detected = True
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
             sim._resolve_combat()
         assert b.respawn_timer == RESPAWN_STEPS
@@ -157,6 +163,7 @@ class TestResolveCombat:
         sim = make_sim()
         add_agent(sim, 1, 0, 0, team=0)
         b = add_agent(sim, 2, 0, 5, team=1, hp=1)   # DPS=3000 で大幅超過
+        b.detected = True
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
             sim._resolve_combat()
         assert b.hp == 0
@@ -166,6 +173,8 @@ class TestResolveCombat:
         sim = make_sim()
         a = add_agent(sim, 1, 0, 0, team=0, hp=DPS, hit_rate=1.0)
         b = add_agent(sim, 2, 0, 5, team=1, hp=DPS, hit_rate=1.0)
+        a.detected = True
+        b.detected = True
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
             sim._resolve_combat()
         assert a.alive is False
@@ -180,6 +189,7 @@ class TestResolveCombat:
         add_agent(sim, 1, 0, 0, team=0, hit_rate=1.0)
         near  = add_agent(sim, 2, 0, 3, team=1)
         far_  = add_agent(sim, 3, 0, 5, team=1)
+        near.detected = True
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
             sim._resolve_combat()
         assert near.hp == AGENT_HP - DPS   # 最近接が狙われる
@@ -194,6 +204,7 @@ class TestResolveCombat:
         add_agent(sim, 1, 0, 0, team=0, hit_rate=1.0)
         add_agent(sim, 2, 0, 1, team=0, hit_rate=1.0)
         target = add_agent(sim, 3, 0, 5, team=1)
+        target.detected = True
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
             sim._resolve_combat()
         assert target.hp == AGENT_HP - DPS * 2
@@ -202,7 +213,8 @@ class TestResolveCombat:
         """命中時にイベントリストが空でない"""
         sim = make_sim()
         add_agent(sim, 1, 0, 0, team=0)
-        add_agent(sim, 2, 0, 5, team=1)
+        b = add_agent(sim, 2, 0, 5, team=1)
+        b.detected = True
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
             events = sim._resolve_combat()
         assert len(events) > 0
@@ -211,7 +223,8 @@ class TestResolveCombat:
         """撃破イベントに「撃破」が含まれる"""
         sim = make_sim()
         add_agent(sim, 1, 0, 0, team=0, hit_rate=1.0)
-        add_agent(sim, 2, 0, 5, team=1, hp=DPS)
+        b = add_agent(sim, 2, 0, 5, team=1, hp=DPS)
+        b.detected = True
         with patch('simulation.random.random', return_value=ALWAYS_HIT):
             events = sim._resolve_combat()
         assert any("撃破" in e for e in events)
