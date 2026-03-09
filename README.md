@@ -110,6 +110,12 @@ python replay.py logs/dev/steps_YYYYMMDD_HHMMSS.csv sim.gif
 
 # MP4 形式（要 Pillow + FFmpeg）
 python replay.py logs/dev/steps_YYYYMMDD_HHMMSS.csv sim.mp4 --fps 15
+
+# 解像度指定（デフォルト 640×480）
+python replay.py logs/dev/steps_YYYYMMDD_HHMMSS.csv sim.gif --output-size 1280x960
+
+# 完了メッセージを出力する場合
+python replay.py logs/dev/steps_YYYYMMDD_HHMMSS.csv sim.gif --verbose
 ```
 
 Python スクリプトから呼ぶ場合：
@@ -117,6 +123,8 @@ Python スクリプトから呼ぶ場合：
 ```python
 from replay import replay_video
 replay_video('logs/dev/steps_YYYYMMDD_HHMMSS.csv', 'sim.gif', fps=10)
+replay_video('logs/dev/steps_YYYYMMDD_HHMMSS.csv', 'sim.gif',
+             output_size=(1280, 960), verbose=True)
 ```
 
 ### テスト実行

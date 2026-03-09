@@ -642,6 +642,12 @@ python replay.py logs/dev/steps_YYYYMMDD_HHMMSS.csv sim.gif
 
 # MP4 生成（要: pip install pillow + FFmpeg システムインストール）
 python replay.py logs/dev/steps_YYYYMMDD_HHMMSS.csv sim.mp4 --fps 15
+
+# 解像度指定（デフォルト 640×480）
+python replay.py logs/dev/steps_YYYYMMDD_HHMMSS.csv sim.gif --output-size 1280x960
+
+# 完了メッセージを出力する場合
+python replay.py logs/dev/steps_YYYYMMDD_HHMMSS.csv sim.gif --verbose
 ```
 
 Python から直接呼ぶ場合:
@@ -649,6 +655,8 @@ Python から直接呼ぶ場合:
 ```python
 from replay import replay_video
 replay_video('logs/dev/steps_YYYYMMDD_HHMMSS.csv', 'sim.gif', fps=10)
+replay_video('logs/dev/steps_YYYYMMDD_HHMMSS.csv', 'sim.gif',
+             output_size=(1280, 960), verbose=True)
 ```
 
 > **注意**: エージェント列（`a{id}_x` 等）を含む最新フォーマットの steps_*.csv が必要。
@@ -660,6 +668,14 @@ replay_video('logs/dev/steps_YYYYMMDD_HHMMSS.csv', 'sim.gif', fps=10)
 |---|---|---|
 | `step_delay` | `0.0` | ステップ間の表示時間（秒）。`0` で GUI 非表示 |
 | `verbose` | `False` | `True` でコンソールへの詳細ログを有効化 |
+
+### `replay_video()` のオプション
+
+| パラメータ | デフォルト | 説明 |
+|---|---|---|
+| `fps` | `10` | フレームレート |
+| `output_size` | `(640, 480)` | 出力解像度（幅, 高さ）ピクセル。マップは中央配置・余白は黒 |
+| `verbose` | `False` | `True` で完了メッセージをコンソールに出力 |
 
 ```python
 # GUI 表示あり + コンソールログあり（python simulation.py の挙動）
