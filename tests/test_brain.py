@@ -155,12 +155,14 @@ class TestAttack:
     def test_stay_when_enemy_in_lockon(self):
         """ロックオン距離内(dist ≤ 12)の敵 → STAY（射撃モード）"""
         enemy = make_agent(agent_id=2, x=5, y=30, team=1)  # dist = 5
+        enemy.detected = True
         action = decide(self.brain, self.agent, self.m, [self.agent, enemy])
         assert action is Action.STAY
 
     def test_stay_when_enemy_at_exact_lockon_boundary(self):
         """ロックオン距離ちょうど(dist = 12) → STAY"""
         enemy = make_agent(agent_id=2, x=5, y=37, team=1)  # dist = 12
+        enemy.detected = True
         action = decide(self.brain, self.agent, self.m, [self.agent, enemy])
         assert action is Action.STAY
 
@@ -175,6 +177,7 @@ class TestAttack:
         """複数敵のうち最近接がロックオン内ならATTACK→STAY"""
         near  = make_agent(agent_id=2, x=5, y=30, team=1)  # dist = 5
         far   = make_agent(agent_id=3, x=5, y=40, team=1)  # dist = 15, search境界内
+        near.detected = True
         action = decide(self.brain, self.agent, self.m,
                         [self.agent, near, far])
         assert action is Action.STAY

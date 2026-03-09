@@ -32,7 +32,7 @@ BASE B（チームB）
 - **同時解決戦闘** — 全エージェントの射撃を一括計算してから適用（相打ちあり）
 - **CSV ログ出力** — ステップ・イベントの2種類のログを自動保存、分析に利用可能
 - **パーツ・武器データ管理** — 実際のゲームデータを基にした機体パラメータ計算（セットボーナス・強化チップ・重量ペナルティ・武器派生パラメータ）
-- **680 件のユニットテスト** — TDD で開発、全件グリーン
+- **692 件のユニットテスト** — TDD で開発、全件グリーン
 
 ---
 
@@ -186,7 +186,8 @@ BorderBreakシミュレーター/
 │   ├── test_bb_brbonus_calcparam_limit.py  # bb_brbonus_calcparam_limit のテスト（55件）
 │   ├── test_bb_calc_movement.py      # bb_calc_movement のテスト（16件）
 │   ├── test_catalog.py               # catalog のテスト（20件）
-│   └── test_replay.py                # replay_video() のテスト（5件）
+│   ├── test_replay.py                # replay_video() のテスト（5件）
+│   └── test_t13_detection_combat.py     # T-13 被索敵戦闘判定のテスト（12件）
 └── logs/
     └── dev/                          # 開発用 CSV ログ出力先
         ├── steps_YYYYMMDD_HHMMSS.csv
@@ -323,10 +324,10 @@ weapon = calc_full(catalog, LoadoutKeys("a","a","a","a"), weapons={"main": ref})
 
 ### フェーズ6: 高度な戦闘仕様（優先度：中）
 
-| タスク | 内容 |
-|---|---|
-| T-13 被索敵状態に応じた戦闘判定 | 自チームの誰かが索敵している敵のみ射撃可能。`Agent.detected` を活用した視界共有システム |
-| T-14 戦況イベントによる戦略切り替え | プラント占拠・撃破などのイベントを `Brain.on_event()` で受け取り、動的に戦略を変更 |
+| タスク | 状態 | 内容 |
+|---|---|---|
+| T-13 被索敵状態に応じた戦闘判定 | ✅ 完了 | `target.detected=True` の場合のみ射撃・ATTACK 移行。Brain 3クラス + `_resolve_combat()` を更新 |
+| T-14 戦況イベントによる戦略切り替え | 予定 | プラント占拠・撃破などのイベントを `Brain.on_event()` で受け取り、動的に戦略を変更 |
 
 ### フェーズ7: 高度な機能（優先度：低）
 

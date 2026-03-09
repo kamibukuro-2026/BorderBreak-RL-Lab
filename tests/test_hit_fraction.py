@@ -246,6 +246,7 @@ class TestResolveCombatDeterministic:
         sim = make_sim()
         shooter = make_agent(1, 0, 0, team=0, hit_rate=1.0)
         target  = make_agent(2, 0, 5, team=1)   # dist=5 ≤ lockon=6
+        target.detected = True
         sim.add_agent(shooter)
         sim.add_agent(target)
         sim._resolve_combat()
@@ -258,6 +259,7 @@ class TestResolveCombatDeterministic:
         # dist=5 ≤ lockon=6 → hit_frac = min(1.0, 0.40*1.25) = 0.50
         shooter = make_agent(1, 0, 0, team=0, hit_rate=0.40)
         target  = make_agent(2, 0, 5, team=1)
+        target.detected = True
         sim.add_agent(shooter)
         sim.add_agent(target)
         sim._resolve_combat()

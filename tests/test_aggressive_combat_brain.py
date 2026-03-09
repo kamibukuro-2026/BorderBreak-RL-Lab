@@ -75,12 +75,14 @@ class TestAggressiveCombatBrainAttack:
     def test_stay_when_enemy_in_lockon(self):
         """ロックオン距離内(dist=5)の敵 → STAY（射撃モード）"""
         enemy = make_agent(agent_id=2, x=5, y=30, team=1)  # dist=5
+        enemy.detected = True
         action = decide(self.brain, self.agent, self.m, [self.agent, enemy])
         assert action is Action.STAY
 
     def test_stay_at_exact_lockon_boundary(self):
         """ロックオン距離ちょうど(dist=12) → STAY"""
         enemy = make_agent(agent_id=2, x=5, y=37, team=1)  # dist=12
+        enemy.detected = True
         action = decide(self.brain, self.agent, self.m, [self.agent, enemy])
         assert action is Action.STAY
 
