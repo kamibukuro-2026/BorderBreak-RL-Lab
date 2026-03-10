@@ -95,7 +95,8 @@ pip install pillow
 ### シミュレーション実行
 
 ```bash
-python simulation.py
+python main.py        # 推奨
+python simulation.py  # 後方互換（main.py を呼び出す）
 ```
 
 1. 初期状態の静止画が表示される（ウィンドウを閉じると開始）
@@ -145,6 +146,9 @@ BorderBreakシミュレーター/
 ├── agent.py                          # Agent クラス
 ├── map_gen.py                        # create_map() / get_base_spawn_points()
 ├── simulation.py                     # Simulation クラス（re-import ハブ）
+├── renderer.py                       # 描画ロジック（draw_simulation）
+├── logger.py                         # CSV ログ保存（save_dev_logs）
+├── main.py                           # 実行エントリポイント（10 vs 10）
 ├── replay.py                         # steps_*.csv から動画を生成（.gif / .mp4）
 ├── catalog.py                        # パーツ・武器データの読込とインデックス化
 ├── assemble.py                       # 機体アセンブル計算の高レベル API
