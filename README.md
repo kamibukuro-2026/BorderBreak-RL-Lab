@@ -196,6 +196,148 @@ BorderBreakシミュレーター/
 
 ---
 
+## アーキテクチャ
+
+### モジュール依存関係
+
+```mermaid
+graph TD
+    subgraph シミュレーションコア
+        constants["constants.py\n全ゲーム定数"]
+        game_types["game_types.py\nCellType / Action / Role\nPlant / Core / Map"]
+        brain["brain.py\nBrain 階層"]
+        agent["agent.py\nAgent クラス"]
+        map_gen["map_gen.py\ncreate_map()"]
+        simulation["simulation.py\nSimulation クラス"]
+    end
+
+    subgraph パーツ・武器計算
+        catalog["catalog.py\nデータ読込・索引"]
+        assemble["assemble.py\n高レベル API"]
+        bb_base["bb_base_and_brand.py\nベース集計・セットボーナス"]
+        bb_bonus["bb_brbonus_calcparam_limit.py\n強化チップ・下限適用"]
+        bb_move["bb_calc_movement.py\n重量・移動速度計算"]
+        bb_weapon["bb_weapon_calc.py\n武器派生パラメータ"]
+    end
+
+    subgraph データ
+        data_json[("data/\nweapons_all.json\nparts_normalized.json\nrank_param.json\n...")]
+    end
+
+    replay["replay.py\n動画生成"]
+
+    constants --> game_types
+    game_types --> brain
+    game_types --> agent
+    constants --> agent
+    game_types --> map_gen
+    constants --> map_gen
+    brain --> simulation
+    agent --> simulation
+    map_gen --> simulation
+    game_types --> simulation
+    constants --> simulation
+
+    simulation --> replay
+
+    data_json --> catalog
+    catalog --> assemble
+    bb_base --> assemble
+    bb_bonus --> assemble
+    bb_weapon --> assemble
+    bb_move --> bb_base
+```
+
+### クラス・コンポーネント関係
+
+```mermaid
+classDiagram
+    class Simulation {
+        +agents: list[Agent]
+        +plants: list[Plant]
+        +cores: dict[int, Core]
+        +run(max_steps, step_delay, verbose)
+        +_resolve_combat()
+        +_update_detection()
+        +_update_plants()
+        +_update_cores()
+        +_process_respawns()
+        +_calc_hit_fraction()
+        +save_dev_logs()
+    }
+
+    class Agent {
+        +agent_id, x, y, team
+        +hp, max_hp, alive
+        +dps, hit_rate, shots_per_step
+        +search_range_c, lockon_range_c
+        +cells_per_step
+        +boost, boost_max, boost_regen
+        +walk_cells_per_step, dash_cells_per_step
+        +ammo_in_clip, reload_timer
+        +detected, exposure_steps
+        +brain: Brain
+        +dist_cells(other)
+        +in_search_range(other)
+        +in_lockon_range(other)
+    }
+
+    class Brain {
+        +decide(agent, map, plants, agents) Action
+    }
+
+    class GreedyBaseAttackBrain {
+        +target: tuple
+        +decide() →PATROL/APPROACH/ATTACK
+    }
+
+    class PlantCaptureBrain {
+        +decide() →CAPTURE/PATROL/APPROACH/ATTACK
+    }
+
+    class AggressiveCombatBrain {
+        +decide() →HUNT/PATROL/APPROACH/ATTACK
+    }
+
+    class Plant {
+        +plant_id, x, y, radius_cells
+        +owner, capture_gauge
+        +is_in_range(x, y)
+        +get_spawn_points(team)
+    }
+
+    class Core {
+        +team, hp, max_hp
+        +destroyed
+        +apply_damage(dmg)
+    }
+
+    Simulation "1" --> "0..*" Agent : manages
+    Simulation "1" --> "0..*" Plant : manages
+    Simulation "1" --> "2" Core : manages
+    Agent "1" --> "1" Brain : uses
+    Brain <|-- GreedyBaseAttackBrain
+    GreedyBaseAttackBrain <|-- PlantCaptureBrain
+    GreedyBaseAttackBrain <|-- AggressiveCombatBrain
+```
+
+### 1ステップの処理フロー
+
+```mermaid
+flowchart LR
+    A[Brain.decide\n行動決定] --> B[_resolve_combat\n射撃・ダメージ]
+    B --> C[_process_respawns\nリスポーン処理]
+    C --> D[_update_plants\n占拠ゲージ更新]
+    D --> E[_update_cores\nベース攻撃]
+    E --> F[_update_detection\n被索敵状態更新]
+    F --> G{勝敗判定}
+    G -->|コア破壊| H[終了]
+    G -->|制限時間| H
+    G -->|継続| A
+```
+
+---
+
 ## Brain（行動戦略）
 
 新しい戦略は `Brain.decide()` をオーバーライドして実装します。
